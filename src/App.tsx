@@ -37,6 +37,18 @@ import AnalyticsPage from "@/pages/admin/AnalyticsPage";
 import CMSPage from "@/pages/admin/CMSPage";
 import SettingsPage from "@/pages/admin/SettingsPage";
 
+// CMS Sub-pages
+import HomepageCMS from "@/pages/admin/cms/HomepageCMS";
+import AboutCMS from "@/pages/admin/cms/AboutCMS";
+import ProgrammesCMS from "@/pages/admin/cms/ProgrammesCMS";
+import StaffCMS from "@/pages/admin/cms/StaffCMS";
+import GalleryCMS from "@/pages/admin/cms/GalleryCMS";
+import NewsCMS from "@/pages/admin/cms/NewsCMS";
+import EventsCMS from "@/pages/admin/cms/EventsCMS";
+import FAQCMS from "@/pages/admin/cms/FAQCMS";
+import ContactCMS from "@/pages/admin/cms/ContactCMS";
+import SiteSettingsCMS from "@/pages/admin/cms/SiteSettingsCMS";
+
 // Portals
 import ParentPortal from "@/pages/portals/ParentPortal";
 import TeacherPortal from "@/pages/portals/TeacherPortal";
@@ -82,6 +94,16 @@ const App = () => (
             <Route path="/admin/announcements" element={<AnnouncementsPage />} />
             <Route path="/admin/analytics" element={<AnalyticsPage />} />
             <Route path="/admin/cms" element={<CMSPage />} />
+            <Route path="/admin/cms/homepage" element={<HomepageCMS />} />
+            <Route path="/admin/cms/about" element={<AboutCMS />} />
+            <Route path="/admin/cms/programmes" element={<ProgrammesCMS />} />
+            <Route path="/admin/cms/staff" element={<StaffCMS />} />
+            <Route path="/admin/cms/gallery" element={<GalleryCMS />} />
+            <Route path="/admin/cms/news" element={<NewsCMS />} />
+            <Route path="/admin/cms/events" element={<EventsCMS />} />
+            <Route path="/admin/cms/faq" element={<FAQCMS />} />
+            <Route path="/admin/cms/contact" element={<ContactCMS />} />
+            <Route path="/admin/cms/settings" element={<SiteSettingsCMS />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
           </Route>
 

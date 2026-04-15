@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, GraduationCap, DollarSign, TrendingUp, UserPlus, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { Users, GraduationCap, DollarSign, TrendingUp, UserPlus, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { stats } from "@/lib/demo-data";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
@@ -33,16 +33,16 @@ export default function AdminDashboard() {
         <p className="text-sm text-muted-foreground">Welcome back. Here's what's happening at Prestige Academy.</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {statCards.map((s) => (
           <Card key={s.label} className="stat-card">
-            <CardContent className="p-4 md:p-6">
-              <div className="flex items-start justify-between mb-3">
-                <s.icon className={`h-5 w-5 ${s.color}`} />
+            <CardContent className="p-3 sm:p-4 md:p-6">
+              <div className="flex items-start justify-between mb-2 sm:mb-3">
+                <s.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${s.color}`} />
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-foreground">{s.value}</p>
-              <p className="text-sm font-medium text-foreground mt-1">{s.label}</p>
-              <p className="text-xs text-muted-foreground mt-1">{s.change}</p>
+              <p className="text-lg sm:text-2xl md:text-3xl font-bold text-foreground">{s.value}</p>
+              <p className="text-xs sm:text-sm font-medium text-foreground mt-1">{s.label}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{s.change}</p>
             </CardContent>
           </Card>
         ))}
@@ -50,13 +50,13 @@ export default function AdminDashboard() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="border-border">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <h3 className="font-bold text-foreground mb-4">Enrolment by Level</h3>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={enrollmentData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 15%, 88%)" />
-                <XAxis dataKey="level" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
+                <XAxis dataKey="level" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Bar dataKey="students" fill="hsl(163, 70%, 11%)" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -65,12 +65,12 @@ export default function AdminDashboard() {
         </Card>
 
         <Card className="border-border">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <h3 className="font-bold text-foreground mb-4">Fee Collection Summary</h3>
             <div className="flex items-center justify-center">
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
-                  <Pie data={feeData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
+                  <Pie data={feeData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value">
                     {feeData.map((entry) => (
                       <Cell key={entry.name} fill={entry.color} />
                     ))}
@@ -79,10 +79,10 @@ export default function AdminDashboard() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="flex justify-center gap-6 mt-2">
+            <div className="flex justify-center gap-4 sm:gap-6 mt-2">
               {feeData.map((d) => (
                 <div key={d.name} className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full" style={{ backgroundColor: d.color }} />
+                  <div className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
                   <span className="text-xs text-muted-foreground">{d.name}: ₵{(d.value / 1000).toFixed(0)}K</span>
                 </div>
               ))}
@@ -93,7 +93,7 @@ export default function AdminDashboard() {
 
       {/* Recent Activity */}
       <Card className="border-border">
-        <CardContent className="p-6">
+        <CardContent className="p-4 sm:p-6">
           <h3 className="font-bold text-foreground mb-4">Recent Activity</h3>
           <div className="space-y-3">
             {[

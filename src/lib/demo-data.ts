@@ -139,9 +139,9 @@ export const classStructure = [
 ];
 
 export const admissionApplications = [
-  { id: "1", childName: "Kweku Appiah", parentName: "Mr. Joseph Appiah", parentPhone: "+233 24 555 1234", classApplied: "Primary 1", dateApplied: "2024-11-10", status: "Pending" as const, previousSchool: "Little Stars Preparatory" },
-  { id: "2", childName: "Adwoa Sarpong", parentName: "Mrs. Rita Sarpong", parentPhone: "+233 20 888 9999", classApplied: "KG 1", dateApplied: "2024-11-08", status: "Approved" as const, previousSchool: "N/A" },
-  { id: "3", childName: "Yaw Mensah", parentName: "Dr. Frank Mensah", parentPhone: "+233 55 222 3333", classApplied: "JHS 1", dateApplied: "2024-11-05", status: "Under Review" as const, previousSchool: "Bright Future Academy" },
+  { id: "1", childName: "Kweku Appiah", parentName: "Mr. Joseph Appiah", parentPhone: "+233 24 555 1234", classApplied: "Primary 1", dateApplied: "2024-11-10", status: "Pending" as string, previousSchool: "Little Stars Preparatory" },
+  { id: "2", childName: "Adwoa Sarpong", parentName: "Mrs. Rita Sarpong", parentPhone: "+233 20 888 9999", classApplied: "KG 1", dateApplied: "2024-11-08", status: "Approved" as string, previousSchool: "N/A" },
+  { id: "3", childName: "Yaw Mensah", parentName: "Dr. Frank Mensah", parentPhone: "+233 55 222 3333", classApplied: "JHS 1", dateApplied: "2024-11-05", status: "Under Review" as string, previousSchool: "Bright Future Academy" },
 ];
 
 export const faqItems = [

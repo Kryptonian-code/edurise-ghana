@@ -8,16 +8,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Printer, Save, Plus, Trash2, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
-import { schoolInfo as defaultSchoolInfo } from "@/lib/demo-data";
 import type { Student } from "@/lib/demo-data";
 import { students as demoStudents } from "@/lib/demo-data";
 import {
   buildDefaultReportCard,
+  defaultSubjectsForClass,
   getReportCard,
   gradeFor,
   saveReportCard,
   type ReportCard,
 } from "@/lib/report-card-store";
+import { getStudentTermScores } from "@/lib/results-store";
+import { getBranding } from "@/lib/branding-store";
 
 const TERMS = ["Term 1", "Term 2", "Term 3"];
 const ACADEMIC_YEARS = ["2023/2024", "2024/2025", "2025/2026"];

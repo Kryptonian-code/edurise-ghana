@@ -52,15 +52,46 @@ export default function ReportCardPage() {
 
   const students = useMemo(() => loadStudents(), []);
   const student = useMemo(() => students.find(s => s.id === studentId), [students, studentId]);
-  const schoolInfo = useMemo(() => loadSchoolInfo(), []);
+  const schoolInfo = useMemo(() => getBranding(), []);
 
   const [card, setCard] = useState<ReportCard | null>(null);
 
   useEffect(() => {
     if (!student) return;
     const existing = getReportCard(student.id, year, term);
-    setCard(existing || buildDefaultReportCard(student.id, student.class, year, term));
+    const fromResults = getStudentTermScores(student.id, year, term, student.class);
+
+    if (existing) {
+      // Merge in any new subjects from Results that aren't on the saved card
+      const known = new Set(existing.subjects.map(s => s.subject));
+      const merged = [...existing.subjects];
+      for (const r of fromResults) {
+        if (!known.has(r.subject)) {
+          merged.push({ subject: r.subject, classScore: r.classScore, examScore: r.examScore, remark: "" });
+        } else {
+          // Update scores from Results if user hasn't manually overridden (i.e. saved card had 0s)
+          const idx = merged.findIndex(m => m.subject === r.subject);
+          if (idx >= 0 && merged[idx].classScore === 0 && merged[idx].examScore === 0) {
+            merged[idx] = { ...merged[idx], classScore: r.classScore, examScore: r.examScore };
+          }
+        }
+      }
+      setCard({ ...existing, subjects: merged });
+    } else {
+      const base = buildDefaultReportCard(student.id, student.class, year, term);
+      const subjectMap = new Map(base.subjects.map(s => [s.subject, s]));
+      for (const r of fromResults) {
+        subjectMap.set(r.subject, { subject: r.subject, classScore: r.classScore, examScore: r.examScore, remark: "" });
+      }
+      // Ensure default subjects always appear in canonical order
+      const ordered = [
+        ...defaultSubjectsForClass(student.class).map(s => subjectMap.get(s)!).filter(Boolean),
+        ...Array.from(subjectMap.values()).filter(s => !defaultSubjectsForClass(student.class).includes(s.subject)),
+      ];
+      setCard({ ...base, subjects: ordered });
+    }
   }, [student, year, term]);
+
 
   if (!student) {
     return (

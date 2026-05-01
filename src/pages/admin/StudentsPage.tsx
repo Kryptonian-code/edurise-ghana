@@ -8,13 +8,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, Plus, Eye, Edit, Trash2, Users } from "lucide-react";
+import { Search, Plus, Eye, Edit, Trash2, Users, FileText } from "lucide-react";
 import { students as demoStudents, Student } from "@/lib/demo-data";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const CLASSES = ["Crèche", "Nursery 1", "Nursery 2", "KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "JHS 1", "JHS 2", "JHS 3", "SHS 1", "SHS 2", "SHS 3"];
 
 export default function StudentsPage() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [students, setStudents] = useState<Student[]>(() => {
     const saved = localStorage.getItem("pa_students");
@@ -158,6 +160,7 @@ export default function StudentsPage() {
                           <div className="flex gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewStudent(s)} title="View"><Eye className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(s)} title="Edit"><Edit className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/admin/students/${s.id}/report-card`)} title="Report Card"><FileText className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(s)} title="Delete"><Trash2 className="h-4 w-4" /></Button>
                           </div>
                         </TableCell>
@@ -269,6 +272,9 @@ export default function StudentsPage() {
           )}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setViewStudent(null)}>Close</Button>
+            <Button variant="outline" onClick={() => { if (viewStudent) { navigate(`/admin/students/${viewStudent.id}/report-card`); } }}>
+              <FileText className="h-4 w-4 mr-2" />Report Card
+            </Button>
             <Button onClick={() => { if (viewStudent) { openEdit(viewStudent); setViewStudent(null); } }}>Edit Student</Button>
           </DialogFooter>
         </DialogContent>

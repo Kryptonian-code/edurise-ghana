@@ -26,6 +26,7 @@ import LoginPage from "@/pages/LoginPage";
 // Admin pages
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import StudentsPage from "@/pages/admin/StudentsPage";
+import ReportCardPage from "@/pages/admin/ReportCardPage";
 import TeachersPage from "@/pages/admin/TeachersPage";
 import AcademicsPage from "@/pages/admin/AcademicsPage";
 import AttendancePage from "@/pages/admin/AttendancePage";
@@ -85,6 +86,7 @@ const App = () => (
           <Route element={<DashboardLayout />}>
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/students" element={<StudentsPage />} />
+            <Route path="/admin/students/:studentId/report-card" element={<ReportCardPage />} />
             <Route path="/admin/teachers" element={<TeachersPage />} />
             <Route path="/admin/academics" element={<AcademicsPage />} />
             <Route path="/admin/attendance" element={<AttendancePage />} />

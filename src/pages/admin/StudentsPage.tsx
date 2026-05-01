@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 const CLASSES = ["Crèche", "Nursery 1", "Nursery 2", "KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "JHS 1", "JHS 2", "JHS 3", "SHS 1", "SHS 2", "SHS 3"];
 
 export default function StudentsPage() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [students, setStudents] = useState<Student[]>(() => {
     const saved = localStorage.getItem("pa_students");
@@ -159,6 +160,7 @@ export default function StudentsPage() {
                           <div className="flex gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewStudent(s)} title="View"><Eye className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(s)} title="Edit"><Edit className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/admin/students/${s.id}/report-card`)} title="Report Card"><FileText className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(s)} title="Delete"><Trash2 className="h-4 w-4" /></Button>
                           </div>
                         </TableCell>

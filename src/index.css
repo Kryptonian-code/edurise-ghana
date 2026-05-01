@@ -128,3 +128,25 @@
     @apply text-2xl font-heading font-bold text-foreground;
   }
 }
+
+/* Print styles for report card (A4) */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  html, body {
+    background: #ffffff !important;
+  }
+  .no-print, .no-print * {
+    display: none !important;
+  }
+  .print-area {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+}
+

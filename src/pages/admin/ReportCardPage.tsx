@@ -8,16 +8,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Printer, Save, Plus, Trash2, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
-import { schoolInfo as defaultSchoolInfo } from "@/lib/demo-data";
 import type { Student } from "@/lib/demo-data";
 import { students as demoStudents } from "@/lib/demo-data";
 import {
   buildDefaultReportCard,
+  defaultSubjectsForClass,
   getReportCard,
   gradeFor,
   saveReportCard,
   type ReportCard,
 } from "@/lib/report-card-store";
+import { getStudentTermScores } from "@/lib/results-store";
+import { getBranding } from "@/lib/branding-store";
 
 const TERMS = ["Term 1", "Term 2", "Term 3"];
 const ACADEMIC_YEARS = ["2023/2024", "2024/2025", "2025/2026"];
@@ -31,15 +33,6 @@ function loadStudents(): Student[] {
   }
 }
 
-function loadSchoolInfo() {
-  try {
-    const raw = localStorage.getItem("pa_school_info");
-    return raw ? { ...defaultSchoolInfo, ...JSON.parse(raw) } : defaultSchoolInfo;
-  } catch {
-    return defaultSchoolInfo;
-  }
-}
-
 export default function ReportCardPage() {
   const { studentId } = useParams<{ studentId: string }>();
   const [params, setParams] = useSearchParams();
@@ -50,15 +43,46 @@ export default function ReportCardPage() {
 
   const students = useMemo(() => loadStudents(), []);
   const student = useMemo(() => students.find(s => s.id === studentId), [students, studentId]);
-  const schoolInfo = useMemo(() => loadSchoolInfo(), []);
+  const schoolInfo = useMemo(() => getBranding(), []);
 
   const [card, setCard] = useState<ReportCard | null>(null);
 
   useEffect(() => {
     if (!student) return;
     const existing = getReportCard(student.id, year, term);
-    setCard(existing || buildDefaultReportCard(student.id, student.class, year, term));
+    const fromResults = getStudentTermScores(student.id, year, term, student.class);
+
+    if (existing) {
+      // Merge in any new subjects from Results that aren't on the saved card
+      const known = new Set(existing.subjects.map(s => s.subject));
+      const merged = [...existing.subjects];
+      for (const r of fromResults) {
+        if (!known.has(r.subject)) {
+          merged.push({ subject: r.subject, classScore: r.classScore, examScore: r.examScore, remark: "" });
+        } else {
+          // Update scores from Results if user hasn't manually overridden (i.e. saved card had 0s)
+          const idx = merged.findIndex(m => m.subject === r.subject);
+          if (idx >= 0 && merged[idx].classScore === 0 && merged[idx].examScore === 0) {
+            merged[idx] = { ...merged[idx], classScore: r.classScore, examScore: r.examScore };
+          }
+        }
+      }
+      setCard({ ...existing, subjects: merged });
+    } else {
+      const base = buildDefaultReportCard(student.id, student.class, year, term);
+      const subjectMap = new Map(base.subjects.map(s => [s.subject, s]));
+      for (const r of fromResults) {
+        subjectMap.set(r.subject, { subject: r.subject, classScore: r.classScore, examScore: r.examScore, remark: "" });
+      }
+      // Ensure default subjects always appear in canonical order
+      const ordered = [
+        ...defaultSubjectsForClass(student.class).map(s => subjectMap.get(s)!).filter(Boolean),
+        ...Array.from(subjectMap.values()).filter(s => !defaultSubjectsForClass(student.class).includes(s.subject)),
+      ];
+      setCard({ ...base, subjects: ordered });
+    }
   }, [student, year, term]);
+
 
   if (!student) {
     return (
@@ -223,9 +247,13 @@ export default function ReportCardPage() {
         {/* Header */}
         <div className="flex items-start justify-between border-b-2 border-black pb-4">
           <div className="flex items-center gap-3">
-            <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "#062f26" }}>
-              <GraduationCap className="h-9 w-9" style={{ color: "#d7c7a3" }} />
-            </div>
+            {schoolInfo.logoDataUrl ? (
+              <img src={schoolInfo.logoDataUrl} alt={schoolInfo.name} className="h-16 w-16 object-contain rounded" />
+            ) : (
+              <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "#062f26" }}>
+                <GraduationCap className="h-9 w-9" style={{ color: "#d7c7a3" }} />
+              </div>
+            )}
             <div>
               <h1 className="text-2xl font-extrabold uppercase tracking-tight" style={{ color: "#062f26" }}>{schoolInfo.name}</h1>
               <p className="text-xs italic">{schoolInfo.motto}</p>

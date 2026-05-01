@@ -4,10 +4,43 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { schoolInfo } from "@/lib/demo-data";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { getBranding, saveBranding, clearLogo, type SchoolBranding } from "@/lib/branding-store";
+import { Upload, Trash2, GraduationCap } from "lucide-react";
 
 export default function SettingsPage() {
+  const [branding, setBranding] = useState<SchoolBranding>(() => getBranding());
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleField = <K extends keyof SchoolBranding>(key: K, value: SchoolBranding[K]) => {
+    setBranding(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSaveSchool = () => {
+    saveBranding(branding);
+    toast.success("School information saved.");
+  };
+
+  const handleLogoUpload = (file: File) => {
+    if (!file.type.startsWith("image/")) { toast.error("Please upload an image file."); return; }
+    if (file.size > 1.5 * 1024 * 1024) { toast.error("Logo must be under 1.5 MB."); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const next = saveBranding({ logoDataUrl: dataUrl });
+      setBranding(next);
+      toast.success("School logo uploaded. It will appear on all report cards.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    clearLogo();
+    setBranding(getBranding());
+    toast.success("School logo removed.");
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -16,8 +49,9 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="school" className="w-full">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex-wrap h-auto">
           <TabsTrigger value="school">School Info</TabsTrigger>
+          <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="academic">Academic Year</TabsTrigger>
           <TabsTrigger value="sms">SMS & Notifications</TabsTrigger>
           <TabsTrigger value="roles">Roles & Access</TabsTrigger>
@@ -28,16 +62,53 @@ export default function SettingsPage() {
             <CardContent className="p-6">
               <h3 className="font-bold text-foreground mb-4">School Information</h3>
               <div className="grid sm:grid-cols-2 gap-4">
-                <div><Label>School Name</Label><Input defaultValue={schoolInfo.name} className="mt-1" /></div>
-                <div><Label>Motto</Label><Input defaultValue={schoolInfo.motto} className="mt-1" /></div>
-                <div><Label>Address</Label><Input defaultValue={schoolInfo.address} className="mt-1" /></div>
-                <div><Label>P.O. Box</Label><Input defaultValue={schoolInfo.poBox} className="mt-1" /></div>
-                <div><Label>Phone</Label><Input defaultValue={schoolInfo.phone} className="mt-1" /></div>
-                <div><Label>Email</Label><Input defaultValue={schoolInfo.email} className="mt-1" /></div>
-                <div><Label>WhatsApp</Label><Input defaultValue={schoolInfo.whatsapp} className="mt-1" /></div>
-                <div><Label>Digital Address</Label><Input defaultValue={schoolInfo.digitalAddress} className="mt-1" /></div>
+                <div><Label>School Name</Label><Input value={branding.name} onChange={e => handleField("name", e.target.value)} className="mt-1" /></div>
+                <div><Label>Motto</Label><Input value={branding.motto} onChange={e => handleField("motto", e.target.value)} className="mt-1" /></div>
+                <div className="sm:col-span-2"><Label>Address</Label><Input value={branding.address} onChange={e => handleField("address", e.target.value)} className="mt-1" /></div>
+                <div><Label>Phone</Label><Input value={branding.phone} onChange={e => handleField("phone", e.target.value)} className="mt-1" /></div>
+                <div><Label>Email</Label><Input value={branding.email} onChange={e => handleField("email", e.target.value)} className="mt-1" /></div>
+                <div><Label>Website</Label><Input value={branding.website} onChange={e => handleField("website", e.target.value)} className="mt-1" /></div>
               </div>
-              <Button className="font-semibold mt-4" onClick={() => toast.success("Settings saved!")}>Save Changes</Button>
+              <Button className="font-semibold mt-4" onClick={handleSaveSchool}>Save Changes</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="branding">
+          <Card className="border-border">
+            <CardContent className="p-6">
+              <h3 className="font-bold text-foreground mb-1">School Logo</h3>
+              <p className="text-sm text-muted-foreground mb-4">Upload a square logo (PNG or JPG, max 1.5 MB). It is automatically applied to report cards, the parent portal, and printed documents.</p>
+
+              <div className="flex flex-col sm:flex-row items-start gap-6">
+                <div className="h-28 w-28 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-muted/40 overflow-hidden shrink-0">
+                  {branding.logoDataUrl ? (
+                    <img src={branding.logoDataUrl} alt="School logo" className="h-full w-full object-contain" />
+                  ) : (
+                    <GraduationCap className="h-10 w-10 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-3">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml"
+                    className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); e.target.value = ""; }}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={() => fileRef.current?.click()}>
+                      <Upload className="h-4 w-4 mr-2" />{branding.logoDataUrl ? "Replace logo" : "Upload logo"}
+                    </Button>
+                    {branding.logoDataUrl && (
+                      <Button variant="outline" onClick={handleRemoveLogo}>
+                        <Trash2 className="h-4 w-4 mr-2" />Remove
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Recommended: 512×512 PNG with a transparent background.</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

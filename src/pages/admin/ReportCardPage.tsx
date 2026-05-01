@@ -247,9 +247,13 @@ export default function ReportCardPage() {
         {/* Header */}
         <div className="flex items-start justify-between border-b-2 border-black pb-4">
           <div className="flex items-center gap-3">
-            <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "#062f26" }}>
-              <GraduationCap className="h-9 w-9" style={{ color: "#d7c7a3" }} />
-            </div>
+            {schoolInfo.logoDataUrl ? (
+              <img src={schoolInfo.logoDataUrl} alt={schoolInfo.name} className="h-16 w-16 object-contain rounded" />
+            ) : (
+              <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "#062f26" }}>
+                <GraduationCap className="h-9 w-9" style={{ color: "#d7c7a3" }} />
+              </div>
+            )}
             <div>
               <h1 className="text-2xl font-extrabold uppercase tracking-tight" style={{ color: "#062f26" }}>{schoolInfo.name}</h1>
               <p className="text-xs italic">{schoolInfo.motto}</p>

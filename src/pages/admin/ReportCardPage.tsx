@@ -33,15 +33,6 @@ function loadStudents(): Student[] {
   }
 }
 
-function loadSchoolInfo() {
-  try {
-    const raw = localStorage.getItem("pa_school_info");
-    return raw ? { ...defaultSchoolInfo, ...JSON.parse(raw) } : defaultSchoolInfo;
-  } catch {
-    return defaultSchoolInfo;
-  }
-}
-
 export default function ReportCardPage() {
   const { studentId } = useParams<{ studentId: string }>();
   const [params, setParams] = useSearchParams();

@@ -272,6 +272,9 @@ export default function StudentsPage() {
           )}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setViewStudent(null)}>Close</Button>
+            <Button variant="outline" onClick={() => { if (viewStudent) { navigate(`/admin/students/${viewStudent.id}/report-card`); } }}>
+              <FileText className="h-4 w-4 mr-2" />Report Card
+            </Button>
             <Button onClick={() => { if (viewStudent) { openEdit(viewStudent); setViewStudent(null); } }}>Edit Student</Button>
           </DialogFooter>
         </DialogContent>

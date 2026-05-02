@@ -3,6 +3,8 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Layouts
 import PublicLayout from "@/layouts/PublicLayout";
@@ -65,6 +67,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <AuthProvider>
         <Routes>
           {/* Public website */}
           <Route element={<PublicLayout />}>
@@ -84,7 +87,7 @@ const App = () => (
           <Route path="/login" element={<LoginPage />} />
 
           {/* Admin dashboard */}
-          <Route element={<DashboardLayout />}>
+          <Route element={<ProtectedRoute allowedRoles={["admin"]}><DashboardLayout /></ProtectedRoute>}>
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/students" element={<StudentsPage />} />
             <Route path="/admin/students/bulk-report-cards" element={<BulkReportCardsPage />} />
@@ -112,11 +115,12 @@ const App = () => (
           </Route>
 
           {/* Portals */}
-          <Route path="/parent" element={<ParentPortal />} />
-          <Route path="/teacher" element={<TeacherPortal />} />
+          <Route path="/parent" element={<ProtectedRoute allowedRoles={["parent", "admin"]}><ParentPortal /></ProtectedRoute>} />
+          <Route path="/teacher" element={<ProtectedRoute allowedRoles={["teacher", "admin"]}><TeacherPortal /></ProtectedRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

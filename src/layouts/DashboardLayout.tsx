@@ -152,10 +152,12 @@ export default function DashboardLayout() {
               <Bell className="h-5 w-5" />
               <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full" />
             </Button>
-            <div className="flex items-center gap-2 cursor-pointer">
-              <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-sm font-bold text-accent-foreground shrink-0">SA</div>
-              <span className="text-sm font-medium hidden sm:block">Super Admin</span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-sm font-bold text-accent-foreground shrink-0">{userInitials}</div>
+              <span className="text-sm font-medium hidden sm:block max-w-[160px] truncate">{userLabel}</span>
+              <Button variant="ghost" size="icon" className="hidden sm:inline-flex" onClick={handleSignOut} title="Sign out">
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </header>

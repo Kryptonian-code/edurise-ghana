@@ -7,6 +7,8 @@ import {
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { schoolInfo } from "@/lib/demo-data";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const sidebarItems = [
   { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
@@ -28,6 +30,22 @@ export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out");
+    navigate("/login", { replace: true });
+  };
+
+  const userInitials = (user?.user_metadata?.full_name || user?.email || "A")
+    .toString()
+    .split(/\s+/)
+    .map((p: string) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  const userLabel = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Admin";
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -83,13 +101,17 @@ export default function DashboardLayout() {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-3 border-t border-sidebar-border space-y-1">
+        <Link to="/" className="flex items-center gap-3 px-3 py-2 w-full text-sm rounded-md text-primary-foreground/70 hover:bg-sidebar-accent/50 hover:text-primary-foreground transition-colors">
+          <Globe className="h-4 w-4" />
+          {!collapsed && <span>Back to Website</span>}
+        </Link>
         <button
-          onClick={() => navigate("/")}
-          className="flex items-center gap-3 px-3 py-2 w-full text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors"
+          onClick={handleSignOut}
+          className="flex items-center gap-3 px-3 py-2 w-full text-sm rounded-md text-primary-foreground/70 hover:bg-sidebar-accent/50 hover:text-primary-foreground transition-colors"
         >
           <LogOut className="h-4 w-4" />
-          {!collapsed && <span>Back to Website</span>}
+          {!collapsed && <span>Sign Out</span>}
         </button>
       </div>
     </div>
@@ -130,10 +152,12 @@ export default function DashboardLayout() {
               <Bell className="h-5 w-5" />
               <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full" />
             </Button>
-            <div className="flex items-center gap-2 cursor-pointer">
-              <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-sm font-bold text-accent-foreground shrink-0">SA</div>
-              <span className="text-sm font-medium hidden sm:block">Super Admin</span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-sm font-bold text-accent-foreground shrink-0">{userInitials}</div>
+              <span className="text-sm font-medium hidden sm:block max-w-[160px] truncate">{userLabel}</span>
+              <Button variant="ghost" size="icon" className="hidden sm:inline-flex" onClick={handleSignOut} title="Sign out">
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </header>

@@ -1,15 +1,21 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { BookOpen, DollarSign, Bell, FileText, ClipboardList, LogOut, GraduationCap, Menu, X } from "lucide-react";
 import { students, announcements } from "@/lib/demo-data";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const child = students[0];
 
 export default function ParentPortal() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const handleSignOut = async () => { await signOut(); toast.success("Signed out"); navigate("/login", { replace: true }); };
+  const label = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Parent";
 
   return (
     <div className="min-h-screen bg-background">

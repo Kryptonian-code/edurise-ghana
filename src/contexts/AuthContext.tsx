@@ -74,8 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshRoles = async () => { await loadRoles(user?.id); };
 
+  const isAdmin = roles.includes("admin");
+  const isTeacher = roles.includes("teacher");
+  const isParent = roles.includes("parent");
+  const hasRole = (r: AppRole) => roles.includes(r);
+  const primaryPortalPath = portalPathFor(roles);
+
   return (
-    <AuthContext.Provider value={{ user, session, roles, loading, signOut, refreshRoles }}>
+    <AuthContext.Provider value={{ user, session, roles, loading, isAdmin, isTeacher, isParent, hasRole, primaryPortalPath, signOut, refreshRoles }}>
       {children}
     </AuthContext.Provider>
   );

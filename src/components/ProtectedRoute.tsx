@@ -1,7 +1,8 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 import { useAuth, AppRole } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Props {
   children: ReactNode;
@@ -9,8 +10,18 @@ interface Props {
 }
 
 export default function ProtectedRoute({ children, allowedRoles }: Props) {
-  const { user, roles, loading } = useAuth();
+  const { user, roles, loading, primaryPortalPath } = useAuth();
   const location = useLocation();
+  const warned = useRef(false);
+
+  const hasAccess = !allowedRoles?.length || roles.some(r => allowedRoles.includes(r));
+
+  useEffect(() => {
+    if (!loading && user && !hasAccess && !warned.current) {
+      warned.current = true;
+      toast.error("You don't have access to that area.");
+    }
+  }, [loading, user, hasAccess]);
 
   if (loading) {
     return (
@@ -24,11 +35,8 @@ export default function ProtectedRoute({ children, allowedRoles }: Props) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles && allowedRoles.length > 0) {
-    const hasAccess = roles.some(r => allowedRoles.includes(r));
-    if (!hasAccess) {
-      return <Navigate to="/" replace />;
-    }
+  if (!hasAccess) {
+    return <Navigate to={primaryPortalPath} replace />;
   }
 
   return <>{children}</>;

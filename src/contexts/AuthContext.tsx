@@ -9,8 +9,19 @@ interface AuthContextValue {
   session: Session | null;
   roles: AppRole[];
   loading: boolean;
+  isAdmin: boolean;
+  isTeacher: boolean;
+  isParent: boolean;
+  hasRole: (role: AppRole) => boolean;
+  primaryPortalPath: string;
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
+}
+
+export function portalPathFor(roles: AppRole[]): string {
+  if (roles.includes("admin")) return "/admin";
+  if (roles.includes("teacher")) return "/teacher";
+  return "/parent";
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -63,8 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshRoles = async () => { await loadRoles(user?.id); };
 
+  const isAdmin = roles.includes("admin");
+  const isTeacher = roles.includes("teacher");
+  const isParent = roles.includes("parent");
+  const hasRole = (r: AppRole) => roles.includes(r);
+  const primaryPortalPath = portalPathFor(roles);
+
   return (
-    <AuthContext.Provider value={{ user, session, roles, loading, signOut, refreshRoles }}>
+    <AuthContext.Provider value={{ user, session, roles, loading, isAdmin, isTeacher, isParent, hasRole, primaryPortalPath, signOut, refreshRoles }}>
       {children}
     </AuthContext.Provider>
   );

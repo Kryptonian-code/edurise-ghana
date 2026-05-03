@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import { toast } from "sonner";
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user, roles, loading } = useAuth();
 
   const [submitting, setSubmitting] = useState(false);
@@ -25,12 +26,14 @@ export default function LoginPage() {
   // Redirect once authenticated
   useEffect(() => {
     if (loading || !user) return;
+    const redirect = searchParams.get("redirect");
+    if (redirect && redirect.startsWith("/")) { navigate(redirect, { replace: true }); return; }
     const from = (location.state as any)?.from?.pathname as string | undefined;
     if (from) { navigate(from, { replace: true }); return; }
     if (roles.includes("admin")) navigate("/admin", { replace: true });
     else if (roles.includes("teacher")) navigate("/teacher", { replace: true });
     else navigate("/parent", { replace: true });
-  }, [user, roles, loading, navigate, location.state]);
+  }, [user, roles, loading, navigate, location.state, searchParams]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

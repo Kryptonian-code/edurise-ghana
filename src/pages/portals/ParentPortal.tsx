@@ -1,15 +1,21 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { BookOpen, DollarSign, Bell, FileText, ClipboardList, LogOut, GraduationCap, Menu, X } from "lucide-react";
 import { students, announcements } from "@/lib/demo-data";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const child = students[0];
 
 export default function ParentPortal() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const handleSignOut = async () => { await signOut(); toast.success("Signed out"); navigate("/login", { replace: true }); };
+  const label = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Parent";
 
   return (
     <div className="min-h-screen bg-background">
@@ -20,8 +26,8 @@ export default function ParentPortal() {
             <span className="font-bold text-sm sm:text-base">Parent Portal</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <span className="text-sm hidden sm:block">Mr. Kofi Asante</span>
-            <Link to="/login"><Button variant="ghost" size="sm" className="text-primary-foreground"><LogOut className="h-4 w-4" /></Button></Link>
+            <span className="text-sm hidden sm:block">{label}</span>
+            <Button variant="ghost" size="sm" className="text-primary-foreground" onClick={handleSignOut}><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
       </header>
@@ -82,7 +88,7 @@ export default function ParentPortal() {
         </Card>
 
         <div className="text-center py-4">
-          <Link to="/login"><Button variant="outline">Sign Out</Button></Link>
+          <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
         </div>
       </main>
     </div>

@@ -1,11 +1,17 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Users, BookOpen, ClipboardList, Bell, LogOut, GraduationCap, Calendar } from "lucide-react";
 import { announcements } from "@/lib/demo-data";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 export default function TeacherPortal() {
   const myClasses = ["JHS 1", "JHS 2", "JHS 3"];
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const handleSignOut = async () => { await signOut(); toast.success("Signed out"); navigate("/login", { replace: true }); };
+  const label = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Teacher";
 
   return (
     <div className="min-h-screen bg-background">
@@ -16,16 +22,16 @@ export default function TeacherPortal() {
             <span className="font-bold text-sm sm:text-base">Teacher Portal</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <span className="text-sm hidden sm:block">Mr. Emmanuel Tetteh</span>
-            <Link to="/login"><Button variant="ghost" size="sm" className="text-primary-foreground"><LogOut className="h-4 w-4" /></Button></Link>
+            <span className="text-sm hidden sm:block">{label}</span>
+            <Button variant="ghost" size="sm" className="text-primary-foreground" onClick={handleSignOut}><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
       </header>
 
       <main className="container-wide mx-auto px-4 py-6 space-y-6">
         <div>
-          <h1 className="dashboard-header">Good Morning, Mr. Tetteh</h1>
-          <p className="text-sm text-muted-foreground">Mathematics Teacher • {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+          <h1 className="dashboard-header">Welcome, {label}</h1>
+          <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -87,7 +93,7 @@ export default function TeacherPortal() {
         </div>
 
         <div className="text-center py-4">
-          <Link to="/login"><Button variant="outline">Sign Out</Button></Link>
+          <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
         </div>
       </main>
     </div>

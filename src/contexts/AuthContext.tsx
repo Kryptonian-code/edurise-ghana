@@ -9,8 +9,19 @@ interface AuthContextValue {
   session: Session | null;
   roles: AppRole[];
   loading: boolean;
+  isAdmin: boolean;
+  isTeacher: boolean;
+  isParent: boolean;
+  hasRole: (role: AppRole) => boolean;
+  primaryPortalPath: string;
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
+}
+
+export function portalPathFor(roles: AppRole[]): string {
+  if (roles.includes("admin")) return "/admin";
+  if (roles.includes("teacher")) return "/teacher";
+  return "/parent";
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);

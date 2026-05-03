@@ -26,8 +26,8 @@ export default function ParentPortal() {
             <span className="font-bold text-sm sm:text-base">Parent Portal</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <span className="text-sm hidden sm:block">Mr. Kofi Asante</span>
-            <Link to="/login"><Button variant="ghost" size="sm" className="text-primary-foreground"><LogOut className="h-4 w-4" /></Button></Link>
+            <span className="text-sm hidden sm:block">{label}</span>
+            <Button variant="ghost" size="sm" className="text-primary-foreground" onClick={handleSignOut}><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
       </header>

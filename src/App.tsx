@@ -40,6 +40,8 @@ import AnnouncementsPage from "@/pages/admin/AnnouncementsPage";
 import AnalyticsPage from "@/pages/admin/AnalyticsPage";
 import CMSPage from "@/pages/admin/CMSPage";
 import SettingsPage from "@/pages/admin/SettingsPage";
+import InvitationsPage from "@/pages/admin/InvitationsPage";
+import AcceptInvitePage from "@/pages/AcceptInvitePage";
 
 // CMS Sub-pages
 import HomepageCMS from "@/pages/admin/cms/HomepageCMS";
@@ -83,8 +85,9 @@ const App = () => (
             <Route path="/faq" element={<FAQPage />} />
           </Route>
 
-          {/* Login */}
+          {/* Login & invitation acceptance */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
           {/* Admin dashboard */}
           <Route element={<ProtectedRoute allowedRoles={["admin"]}><DashboardLayout /></ProtectedRoute>}>
@@ -112,6 +115,7 @@ const App = () => (
             <Route path="/admin/cms/contact" element={<ContactCMS />} />
             <Route path="/admin/cms/settings" element={<SiteSettingsCMS />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
+            <Route path="/admin/invitations" element={<InvitationsPage />} />
           </Route>
 
           {/* Portals */}

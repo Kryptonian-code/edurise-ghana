@@ -88,7 +88,7 @@ export default function ParentPortal() {
         </Card>
 
         <div className="text-center py-4">
-          <Link to="/login"><Button variant="outline">Sign Out</Button></Link>
+          <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
         </div>
       </main>
     </div>

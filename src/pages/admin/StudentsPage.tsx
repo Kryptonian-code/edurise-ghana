@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,55 +9,75 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, Plus, Eye, Edit, Trash2, Users, FileText, MoreVertical, FileDown, SlidersHorizontal } from "lucide-react";
-import { students as demoStudents, Student } from "@/lib/demo-data";
+import { Search, Plus, Eye, Edit, Trash2, Users, FileText, MoreVertical, FileDown, SlidersHorizontal, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { listStudents, saveStudent, deleteStudent, listClasses, ensureClass, type StudentRow, type ClassRow } from "@/lib/students-store";
+import { logAudit } from "@/lib/audit";
 
-const CLASSES = ["Crèche", "Nursery 1", "Nursery 2", "KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "JHS 1", "JHS 2", "JHS 3", "SHS 1", "SHS 2", "SHS 3"];
+const CLASS_NAMES = ["Crèche", "Nursery 1", "Nursery 2", "KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "JHS 1", "JHS 2", "JHS 3", "SHS 1", "SHS 2", "SHS 3"];
+type SortKey = "name" | "admission" | "class";
 
-type SortKey = "name" | "studentId" | "class";
+interface EditState {
+  id?: string;
+  firstName: string;
+  lastName: string;
+  gender: string;
+  dateOfBirth: string;
+  className: string;
+  guardianName: string;
+  guardianPhone: string;
+  guardianEmail: string;
+  status: string;
+  admissionNumber: string;
+}
 
 export default function StudentsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [classFilter, setClassFilter] = useState<string>("all");
+  const [classFilter, setClassFilter] = useState("all");
   const [guardianFilter, setGuardianFilter] = useState("");
   const [admissionFilter, setAdmissionFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const [students, setStudents] = useState<Student[]>(() => {
-    const saved = localStorage.getItem("pa_students");
-    return saved ? JSON.parse(saved) : demoStudents;
-  });
+  const [students, setStudents] = useState<StudentRow[] | null>(null);
+  const [classes, setClasses] = useState<ClassRow[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [viewStudent, setViewStudent] = useState<Student | null>(null);
-  const [editStudent, setEditStudent] = useState<Partial<Student> | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Student | null>(null);
+  const [viewStudent, setViewStudent] = useState<StudentRow | null>(null);
+  const [editState, setEditState] = useState<EditState | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StudentRow | null>(null);
+  const [saving, setSaving] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 10;
 
-  const persist = (list: Student[]) => {
-    setStudents(list);
-    localStorage.setItem("pa_students", JSON.stringify(list));
+  const reload = async () => {
+    try {
+      const [s, c] = await Promise.all([listStudents(), listClasses()]);
+      setStudents(s);
+      setClasses(c);
+    } catch (e: any) { toast.error(e.message || "Failed to load students."); setStudents([]); }
   };
 
+  useEffect(() => { reload(); }, []);
+
   const filtered = useMemo(() => {
+    if (!students) return [];
     const q = search.trim().toLowerCase();
     const adm = admissionFilter.trim().toLowerCase();
     const grd = guardianFilter.trim().toLowerCase();
     let out = students.filter(s => {
-      if (q && !`${s.firstName} ${s.lastName} ${s.studentId} ${s.class} ${s.guardian}`.toLowerCase().includes(q)) return false;
-      if (classFilter !== "all" && s.class !== classFilter) return false;
-      if (adm && !s.studentId.toLowerCase().includes(adm)) return false;
-      if (grd && !s.guardian.toLowerCase().includes(grd)) return false;
+      const cn = s.className || "";
+      if (q && !`${s.firstName} ${s.lastName} ${s.admissionNumber} ${cn} ${s.guardianName || ""}`.toLowerCase().includes(q)) return false;
+      if (classFilter !== "all" && cn !== classFilter) return false;
+      if (adm && !s.admissionNumber.toLowerCase().includes(adm)) return false;
+      if (grd && !(s.guardianName || "").toLowerCase().includes(grd)) return false;
       return true;
     });
     out = [...out].sort((a, b) => {
       if (sortKey === "name") return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
-      if (sortKey === "studentId") return a.studentId.localeCompare(b.studentId);
-      return a.class.localeCompare(b.class);
+      if (sortKey === "admission") return a.admissionNumber.localeCompare(b.admissionNumber);
+      return (a.className || "").localeCompare(b.className || "");
     });
     return out;
   }, [students, search, classFilter, admissionFilter, guardianFilter, sortKey]);
@@ -65,53 +85,79 @@ export default function StudentsPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const safePage = Math.min(currentPage, totalPages);
   const paginated = filtered.slice((safePage - 1) * perPage, safePage * perPage);
-
   const activeFilterCount = (classFilter !== "all" ? 1 : 0) + (admissionFilter ? 1 : 0) + (guardianFilter ? 1 : 0);
 
+  const generateAdmissionNumber = () => `PA-${new Date().getFullYear()}-${String((students?.length || 0) + 1).padStart(3, "0")}`;
+
   const openNew = () => {
-    setEditStudent({
-      firstName: "", lastName: "", gender: "Male", dateOfBirth: "", class: "", guardian: "", guardianPhone: "", status: "Active", feeBalance: 0,
-      admissionDate: new Date().toISOString().split("T")[0],
-      studentId: `PA-${new Date().getFullYear()}-${String(students.length + 1).padStart(3, "0")}`,
+    setEditState({
+      firstName: "", lastName: "", gender: "Male", dateOfBirth: "", className: "",
+      guardianName: "", guardianPhone: "", guardianEmail: "", status: "active",
+      admissionNumber: generateAdmissionNumber(),
     });
     setDialogOpen(true);
   };
 
-  const openEdit = (s: Student) => { setEditStudent({ ...s }); setDialogOpen(true); };
-
-  const handleSave = () => {
-    if (!editStudent?.firstName || !editStudent?.lastName) return toast.error("Please fill in the student's first and last name.");
-    if (!editStudent.class) return toast.error("Please select a class for the student.");
-    if (!editStudent.guardian || !editStudent.guardianPhone) return toast.error("Please fill in guardian name and phone number.");
-
-    if (editStudent.id) {
-      persist(students.map(s => s.id === editStudent.id ? { ...s, ...editStudent } as Student : s));
-      toast.success("Student record updated successfully.");
-    } else {
-      const newStudent: Student = {
-        ...(editStudent as Student),
-        id: Date.now().toString(),
-        studentId: editStudent.studentId || `PA-${new Date().getFullYear()}-${String(students.length + 1).padStart(3, "0")}`,
-      };
-      persist([newStudent, ...students]);
-      toast.success("Student enrolled successfully.");
-    }
-    setDialogOpen(false);
-    setEditStudent(null);
+  const openEdit = (s: StudentRow) => {
+    setEditState({
+      id: s.id,
+      firstName: s.firstName, lastName: s.lastName,
+      gender: s.gender || "Male",
+      dateOfBirth: s.dateOfBirth || "",
+      className: s.className || "",
+      guardianName: s.guardianName || "",
+      guardianPhone: s.guardianPhone || "",
+      guardianEmail: s.guardianEmail || "",
+      status: s.status,
+      admissionNumber: s.admissionNumber,
+    });
+    setDialogOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleSave = async () => {
+    if (!editState) return;
+    if (!editState.firstName.trim() || !editState.lastName.trim()) return toast.error("Please fill in first and last name.");
+    if (!editState.className) return toast.error("Please select a class.");
+    if (!editState.guardianName.trim() || !editState.guardianPhone.trim()) return toast.error("Please fill in guardian name and phone.");
+    setSaving(true);
+    try {
+      const cls = await ensureClass(editState.className);
+      const saved = await saveStudent({
+        id: editState.id,
+        firstName: editState.firstName.trim(),
+        lastName: editState.lastName.trim(),
+        gender: editState.gender,
+        dateOfBirth: editState.dateOfBirth || null,
+        classId: cls.id,
+        admissionNumber: editState.admissionNumber,
+        guardianName: editState.guardianName.trim(),
+        guardianPhone: editState.guardianPhone.trim(),
+        guardianEmail: editState.guardianEmail.trim() || undefined,
+        status: editState.status,
+      });
+      toast.success(editState.id ? "Student record updated." : "Student enrolled successfully.");
+      logAudit(editState.id ? "student.update" : "student.create", "student", saved.id, { name: `${saved.firstName} ${saved.lastName}` });
+      setDialogOpen(false);
+      setEditState(null);
+      reload();
+    } catch (e: any) { toast.error(e.message || "Couldn't save student."); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
     if (!deleteTarget) return;
-    persist(students.filter(s => s.id !== deleteTarget.id));
-    toast.success(`${deleteTarget.firstName} ${deleteTarget.lastName} has been removed.`);
-    setDeleteTarget(null);
+    try {
+      await deleteStudent(deleteTarget.id);
+      toast.success(`${deleteTarget.firstName} ${deleteTarget.lastName} removed.`);
+      logAudit("student.delete", "student", deleteTarget.id, { name: `${deleteTarget.firstName} ${deleteTarget.lastName}` });
+      setDeleteTarget(null);
+      reload();
+    } catch (e: any) { toast.error(e.message || "Couldn't remove student."); }
   };
 
-  const resetFilters = () => {
-    setClassFilter("all"); setAdmissionFilter(""); setGuardianFilter(""); setSearch(""); setCurrentPage(1);
-  };
+  const resetFilters = () => { setClassFilter("all"); setAdmissionFilter(""); setGuardianFilter(""); setSearch(""); setCurrentPage(1); };
 
-  const ActionsMenu = ({ s }: { s: Student }) => (
+  const ActionsMenu = ({ s }: { s: StudentRow }) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Open actions"><MoreVertical className="h-4 w-4" /></Button>
@@ -133,7 +179,7 @@ export default function StudentsPage() {
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
         <div>
           <h1 className="dashboard-header">Student Management</h1>
-          <p className="text-sm text-muted-foreground">{students.length} students enrolled</p>
+          <p className="text-sm text-muted-foreground">{students ? `${students.length} students enrolled` : "Loading..."}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="font-semibold" onClick={() => navigate("/admin/students/bulk-report-cards")}>
@@ -145,7 +191,6 @@ export default function StudentsPage() {
 
       <Card className="border-border">
         <CardContent className="p-4 space-y-4">
-          {/* Search + filters toolbar */}
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -156,7 +201,7 @@ export default function StudentsPage() {
                 <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Sort by" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="name">Sort: Name (A–Z)</SelectItem>
-                  <SelectItem value="studentId">Sort: Admission No.</SelectItem>
+                  <SelectItem value="admission">Sort: Admission No.</SelectItem>
                   <SelectItem value="class">Sort: Class</SelectItem>
                 </SelectContent>
               </Select>
@@ -176,36 +221,27 @@ export default function StudentsPage() {
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All classes</SelectItem>
-                    {CLASSES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {CLASS_NAMES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label className="text-xs">Admission Number</Label>
-                <Input placeholder="e.g. PA-2019" value={admissionFilter} onChange={e => { setAdmissionFilter(e.target.value); setCurrentPage(1); }} className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-xs">Guardian Name</Label>
-                <Input placeholder="e.g. Mensah" value={guardianFilter} onChange={e => { setGuardianFilter(e.target.value); setCurrentPage(1); }} className="mt-1" />
-              </div>
-              <div className="sm:col-span-3 flex justify-end">
-                <Button variant="ghost" size="sm" onClick={resetFilters}>Reset filters</Button>
-              </div>
+              <div><Label className="text-xs">Admission Number</Label><Input value={admissionFilter} onChange={e => { setAdmissionFilter(e.target.value); setCurrentPage(1); }} className="mt-1" placeholder="e.g. PA-2019" /></div>
+              <div><Label className="text-xs">Guardian Name</Label><Input value={guardianFilter} onChange={e => { setGuardianFilter(e.target.value); setCurrentPage(1); }} className="mt-1" placeholder="e.g. Mensah" /></div>
+              <div className="sm:col-span-3 flex justify-end"><Button variant="ghost" size="sm" onClick={resetFilters}>Reset filters</Button></div>
             </div>
           )}
 
-          {filtered.length === 0 ? (
+          {students === null ? (
+            <div className="py-12 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-12">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="font-bold text-foreground mb-2">{search || activeFilterCount ? "No Results Found" : "No Students Enrolled Yet"}</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                {search || activeFilterCount ? "Try adjusting your search or filters." : "Click 'Add Student' to enrol your first student."}
-              </p>
+              <p className="text-sm text-muted-foreground mb-4">{search || activeFilterCount ? "Try adjusting your search or filters." : "Click 'Add Student' to enrol your first student."}</p>
               {!search && !activeFilterCount && <Button onClick={openNew}>Add Student</Button>}
             </div>
           ) : (
             <>
-              {/* Mobile cards */}
               <div className="md:hidden space-y-3">
                 {paginated.map((s) => (
                   <div key={s.id} className="rounded-lg border border-border p-3 flex items-start gap-3">
@@ -216,24 +252,20 @@ export default function StudentsPage() {
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0">
                           <p className="font-semibold text-foreground truncate">{s.firstName} {s.lastName}</p>
-                          <p className="text-xs text-muted-foreground font-mono truncate">{s.studentId}</p>
+                          <p className="text-xs text-muted-foreground font-mono truncate">{s.admissionNumber}</p>
                         </div>
                         <ActionsMenu s={s} />
                       </div>
                       <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
-                        <Badge variant="secondary">{s.class}{s.stream ? ` (${s.stream})` : ""}</Badge>
-                        <Badge variant={s.status === "Active" ? "default" : "secondary"}>{s.status}</Badge>
-                        {s.feeBalance > 0
-                          ? <Badge variant="destructive">₵{s.feeBalance.toLocaleString()} owed</Badge>
-                          : <Badge className="bg-success text-success-foreground hover:bg-success">Cleared</Badge>}
+                        {s.className && <Badge variant="secondary">{s.className}</Badge>}
+                        <Badge variant={s.status === "active" ? "default" : "secondary"} className="capitalize">{s.status}</Badge>
                       </div>
-                      <p className="mt-2 text-xs text-muted-foreground truncate">Guardian: <span className="text-foreground">{s.guardian}</span></p>
+                      {s.guardianName && <p className="mt-2 text-xs text-muted-foreground truncate">Guardian: <span className="text-foreground">{s.guardianName}</span></p>}
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Desktop table */}
               <div className="hidden md:block overflow-x-auto -mx-4 px-4">
                 <Table>
                   <TableHeader>
@@ -242,7 +274,6 @@ export default function StudentsPage() {
                       <TableHead>Name</TableHead>
                       <TableHead>Class</TableHead>
                       <TableHead className="hidden lg:table-cell">Guardian</TableHead>
-                      <TableHead>Fee Balance</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -250,16 +281,11 @@ export default function StudentsPage() {
                   <TableBody>
                     {paginated.map((s) => (
                       <TableRow key={s.id}>
-                        <TableCell className="font-mono text-xs">{s.studentId}</TableCell>
+                        <TableCell className="font-mono text-xs">{s.admissionNumber}</TableCell>
                         <TableCell className="font-medium whitespace-nowrap">{s.firstName} {s.lastName}</TableCell>
-                        <TableCell>{s.class}{s.stream ? ` (${s.stream})` : ""}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-sm">{s.guardian}</TableCell>
-                        <TableCell>
-                          {s.feeBalance > 0
-                            ? <span className="text-destructive font-semibold">₵{s.feeBalance.toLocaleString()}</span>
-                            : <span className="text-success font-semibold">Cleared</span>}
-                        </TableCell>
-                        <TableCell><Badge variant={s.status === "Active" ? "default" : "secondary"} className="text-xs">{s.status}</Badge></TableCell>
+                        <TableCell>{s.className || "—"}</TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm">{s.guardianName || "—"}</TableCell>
+                        <TableCell><Badge variant={s.status === "active" ? "default" : "secondary"} className="text-xs capitalize">{s.status}</Badge></TableCell>
                         <TableCell className="text-right"><ActionsMenu s={s} /></TableCell>
                       </TableRow>
                     ))}
@@ -281,64 +307,67 @@ export default function StudentsPage() {
         </CardContent>
       </Card>
 
-      {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editStudent?.id ? "Edit Student" : "Enrol New Student"}</DialogTitle>
-            <DialogDescription>
-              {editStudent?.id ? "Update the student's information below." : "Fill in the student's details to complete enrolment."}
-            </DialogDescription>
+            <DialogTitle>{editState?.id ? "Edit Student" : "Enrol New Student"}</DialogTitle>
+            <DialogDescription>{editState?.id ? "Update the student's information below." : "Fill in the student's details to complete enrolment."}</DialogDescription>
           </DialogHeader>
+          {editState && (
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><Label>First Name *</Label><Input value={editStudent?.firstName || ""} onChange={e => setEditStudent(prev => ({ ...prev!, firstName: e.target.value }))} className="mt-1" /></div>
-              <div><Label>Last Name *</Label><Input value={editStudent?.lastName || ""} onChange={e => setEditStudent(prev => ({ ...prev!, lastName: e.target.value }))} className="mt-1" /></div>
+              <div><Label>First Name *</Label><Input value={editState.firstName} onChange={e => setEditState({ ...editState, firstName: e.target.value })} className="mt-1" /></div>
+              <div><Label>Last Name *</Label><Input value={editState.lastName} onChange={e => setEditState({ ...editState, lastName: e.target.value })} className="mt-1" /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><Label>Date of Birth</Label><Input type="date" value={editStudent?.dateOfBirth || ""} onChange={e => setEditStudent(prev => ({ ...prev!, dateOfBirth: e.target.value }))} className="mt-1" /></div>
+              <div><Label>Date of Birth</Label><Input type="date" value={editState.dateOfBirth} onChange={e => setEditState({ ...editState, dateOfBirth: e.target.value })} className="mt-1" /></div>
               <div>
                 <Label>Gender</Label>
-                <Select value={editStudent?.gender} onValueChange={v => setEditStudent(prev => ({ ...prev!, gender: v as "Male" | "Female" }))}>
+                <Select value={editState.gender} onValueChange={v => setEditState({ ...editState, gender: v })}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Class *</Label>
-                <Select value={editStudent?.class || ""} onValueChange={v => setEditStudent(prev => ({ ...prev!, class: v }))}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select class" /></SelectTrigger>
-                  <SelectContent>{CLASSES.map(c => (<SelectItem key={c} value={c}>{c}</SelectItem>))}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Stream</Label>
-                <Select value={editStudent?.stream || ""} onValueChange={v => setEditStudent(prev => ({ ...prev!, stream: v }))}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Optional" /></SelectTrigger>
-                  <SelectContent><SelectItem value="A">A</SelectItem><SelectItem value="B">B</SelectItem><SelectItem value="C">C</SelectItem></SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><Label>Guardian Name *</Label><Input value={editStudent?.guardian || ""} onChange={e => setEditStudent(prev => ({ ...prev!, guardian: e.target.value }))} className="mt-1" /></div>
-              <div><Label>Guardian Phone *</Label><Input value={editStudent?.guardianPhone || ""} onChange={e => setEditStudent(prev => ({ ...prev!, guardianPhone: e.target.value }))} className="mt-1" placeholder="+233 XX XXX XXXX" /></div>
-            </div>
             <div>
-              <Label>Admission Number</Label>
-              <Input value={editStudent?.studentId || ""} readOnly className="mt-1 bg-muted" />
-              <p className="text-xs text-muted-foreground mt-1">Auto-generated and cannot be changed.</p>
+              <Label>Class *</Label>
+              <Select value={editState.className} onValueChange={v => setEditState({ ...editState, className: v })}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Select class" /></SelectTrigger>
+                <SelectContent>{CLASS_NAMES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div><Label>Guardian Name *</Label><Input value={editState.guardianName} onChange={e => setEditState({ ...editState, guardianName: e.target.value })} className="mt-1" /></div>
+              <div><Label>Guardian Phone *</Label><Input value={editState.guardianPhone} onChange={e => setEditState({ ...editState, guardianPhone: e.target.value })} className="mt-1" placeholder="+233 XX XXX XXXX" /></div>
+            </div>
+            <div><Label>Guardian Email</Label><Input type="email" value={editState.guardianEmail} onChange={e => setEditState({ ...editState, guardianEmail: e.target.value })} className="mt-1" /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Status</Label>
+                <Select value={editState.status} onValueChange={v => setEditState({ ...editState, status: v })}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="graduated">Graduated</SelectItem>
+                    <SelectItem value="transferred">Transferred</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Admission Number</Label>
+                <Input value={editState.admissionNumber} onChange={e => setEditState({ ...editState, admissionNumber: e.target.value })} className="mt-1" />
+              </div>
             </div>
           </div>
+          )}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>{editStudent?.id ? "Save Changes" : "Enrol Student"}</Button>
+            <Button onClick={handleSave} disabled={saving}>{saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{editState?.id ? "Save Changes" : "Enrol Student"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* View Dialog */}
       <Dialog open={!!viewStudent} onOpenChange={() => setViewStudent(null)}>
         <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Student Profile</DialogTitle></DialogHeader>
@@ -350,16 +379,16 @@ export default function StudentsPage() {
                 </div>
                 <div className="min-w-0">
                   <h3 className="text-lg font-bold text-foreground truncate">{viewStudent.firstName} {viewStudent.lastName}</h3>
-                  <p className="text-sm text-muted-foreground">{viewStudent.class}{viewStudent.stream ? ` (${viewStudent.stream})` : ""} • {viewStudent.studentId}</p>
-                  <Badge variant={viewStudent.status === "Active" ? "default" : "secondary"} className="text-xs mt-1">{viewStudent.status}</Badge>
+                  <p className="text-sm text-muted-foreground">{viewStudent.className || "—"} • {viewStudent.admissionNumber}</p>
+                  <Badge variant={viewStudent.status === "active" ? "default" : "secondary"} className="text-xs mt-1 capitalize">{viewStudent.status}</Badge>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-muted-foreground">Gender</p><p className="font-medium">{viewStudent.gender}</p></div>
+                <div><p className="text-muted-foreground">Gender</p><p className="font-medium">{viewStudent.gender || "—"}</p></div>
                 <div><p className="text-muted-foreground">Date of Birth</p><p className="font-medium">{viewStudent.dateOfBirth ? new Date(viewStudent.dateOfBirth).toLocaleDateString("en-GB") : "—"}</p></div>
-                <div><p className="text-muted-foreground">Admission Date</p><p className="font-medium">{new Date(viewStudent.admissionDate).toLocaleDateString("en-GB")}</p></div>
-                <div><p className="text-muted-foreground">Fee Balance</p><p className={`font-bold ${viewStudent.feeBalance > 0 ? "text-destructive" : "text-success"}`}>{viewStudent.feeBalance > 0 ? `₵${viewStudent.feeBalance.toLocaleString()}` : "Cleared"}</p></div>
-                <div className="col-span-2"><p className="text-muted-foreground">Guardian</p><p className="font-medium">{viewStudent.guardian} • {viewStudent.guardianPhone}</p></div>
+                {viewStudent.enrolledOn && <div><p className="text-muted-foreground">Enrolled On</p><p className="font-medium">{new Date(viewStudent.enrolledOn).toLocaleDateString("en-GB")}</p></div>}
+                <div className="col-span-2"><p className="text-muted-foreground">Guardian</p><p className="font-medium">{viewStudent.guardianName || "—"} • {viewStudent.guardianPhone || "—"}</p></div>
+                {viewStudent.guardianEmail && <div className="col-span-2"><p className="text-muted-foreground">Guardian Email</p><p className="font-medium break-all">{viewStudent.guardianEmail}</p></div>}
               </div>
             </div>
           )}
@@ -373,13 +402,12 @@ export default function StudentsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Student Record</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove {deleteTarget?.firstName} {deleteTarget?.lastName} ({deleteTarget?.studentId}) from the system? This action cannot be undone.
+              Are you sure you want to remove {deleteTarget?.firstName} {deleteTarget?.lastName} ({deleteTarget?.admissionNumber}) from the system? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

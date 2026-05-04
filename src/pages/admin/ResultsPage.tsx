@@ -6,60 +6,77 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { students as demoStudents, type Student } from "@/lib/demo-data";
 import { defaultSubjectsForClass, gradeFor } from "@/lib/report-card-store";
 import { getSubjectScores, saveSubjectScores } from "@/lib/results-store";
+import { listStudents, listClasses, type StudentRow, type ClassRow } from "@/lib/students-store";
+import { Loader2 } from "lucide-react";
+import { logAudit } from "@/lib/audit";
 
-const CLASSES = ["KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "JHS 1", "JHS 2", "JHS 3", "SHS 1", "SHS 2", "SHS 3"];
 const TERMS = ["Term 1", "Term 2", "Term 3"];
 const YEARS = ["2023/2024", "2024/2025", "2025/2026"];
-
-function loadStudents(): Student[] {
-  try {
-    const raw = localStorage.getItem("pa_students");
-    return raw ? JSON.parse(raw) : demoStudents;
-  } catch { return demoStudents; }
-}
 
 interface Row { id: string; name: string; classScore: number; examScore: number; }
 
 export default function ResultsPage() {
-  const all = useMemo(() => loadStudents(), []);
-  const [klass, setKlass] = useState("JHS 2");
+  const [allStudents, setAllStudents] = useState<StudentRow[]>([]);
+  const [classes, setClasses] = useState<ClassRow[]>([]);
+  const [klass, setKlass] = useState("");
   const [term, setTerm] = useState("Term 1");
   const [year, setYear] = useState("2024/2025");
-
-  const subjects = useMemo(() => defaultSubjectsForClass(klass), [klass]);
-  const [subject, setSubject] = useState(subjects[0]);
-
-  useEffect(() => { setSubject(subjects[0]); }, [subjects]);
-
-  const classStudents = useMemo(() => all.filter(s => s.class === klass && s.status === "Active"), [all, klass]);
-
+  const [subject, setSubject] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const stored = getSubjectScores(year, term, klass, subject);
-    setRows(classStudents.map(s => ({
-      id: s.id,
-      name: `${s.firstName} ${s.lastName}`,
-      classScore: stored[s.id]?.classScore || 0,
-      examScore: stored[s.id]?.examScore || 0,
-    })));
-  }, [classStudents, year, term, klass, subject]);
+    Promise.all([listStudents(), listClasses()]).then(([s, c]) => {
+      setAllStudents(s); setClasses(c);
+      if (c.length && !klass) setKlass(c[0].name);
+      setLoading(false);
+    }).catch(e => { toast.error(e.message || "Failed to load data."); setLoading(false); });
+  }, []);
+
+  const subjects = useMemo(() => defaultSubjectsForClass(klass), [klass]);
+  useEffect(() => { if (subjects.length && !subjects.includes(subject)) setSubject(subjects[0]); }, [subjects]);
+
+  const currentClass = classes.find(c => c.name === klass);
+  const classStudents = useMemo(
+    () => allStudents.filter(s => s.className === klass && s.status === "active"),
+    [allStudents, klass]
+  );
+
+  useEffect(() => {
+    if (!klass || !subject || !currentClass) { setRows([]); return; }
+    getSubjectScores(year, term, currentClass.id, subject).then(stored => {
+      setRows(classStudents.map(s => ({
+        id: s.id, name: `${s.firstName} ${s.lastName}`,
+        classScore: stored[s.id]?.classScore || 0,
+        examScore: stored[s.id]?.examScore || 0,
+      })));
+    });
+  }, [classStudents, year, term, klass, subject, currentClass?.id]);
 
   const update = (id: string, field: "classScore" | "examScore", value: number) => {
-    const max = 50;
-    const v = Math.max(0, Math.min(max, isNaN(value) ? 0 : value));
+    const v = Math.max(0, Math.min(50, isNaN(value) ? 0 : value));
     setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: v } : r));
   };
 
-  const handleSave = () => {
-    const map: Record<string, { classScore: number; examScore: number }> = {};
-    rows.forEach(r => map[r.id] = { classScore: r.classScore, examScore: r.examScore });
-    saveSubjectScores(year, term, klass, subject, map);
-    toast.success(`Scores saved for ${subject} • ${klass} • ${term}.`);
+  const handleSave = async () => {
+    if (!currentClass) { toast.error("Pick a valid class."); return; }
+    setSaving(true);
+    try {
+      const map: Record<string, { classScore: number; examScore: number }> = {};
+      rows.forEach(r => map[r.id] = { classScore: r.classScore, examScore: r.examScore });
+      await saveSubjectScores(year, term, currentClass.id, subject, map);
+      toast.success(`Scores saved for ${subject} • ${klass} • ${term}.`);
+      logAudit("results.save", "subject", `${currentClass.id}:${subject}:${term}:${year}`, { count: rows.length });
+    } catch (e: any) { toast.error(e.message || "Couldn't save scores."); }
+    finally { setSaving(false); }
   };
+
+  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+
+  const classOptions = classes.length ? classes.map(c => c.name) : ["JHS 2"];
 
   return (
     <div className="space-y-6">
@@ -68,15 +85,15 @@ export default function ResultsPage() {
           <h1 className="dashboard-header">Results & Grading</h1>
           <p className="text-sm text-muted-foreground">Enter scores once. They appear automatically on each student's report card.</p>
         </div>
-        <Button className="font-semibold" onClick={handleSave}>Save Scores</Button>
+        <Button className="font-semibold" onClick={handleSave} disabled={saving || !currentClass}>{saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save Scores</Button>
       </div>
 
       <Card className="border-border">
         <CardContent className="p-4 space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div><Label className="text-xs">Class</Label>
-              <Select value={klass} onValueChange={setKlass}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>{CLASSES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              <Select value={klass} onValueChange={setKlass}><SelectTrigger className="mt-1"><SelectValue placeholder="Select class" /></SelectTrigger>
+                <SelectContent>{classOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div><Label className="text-xs">Subject</Label>
@@ -97,7 +114,7 @@ export default function ResultsPage() {
           </div>
 
           {rows.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No active students in {klass}.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No active students in {klass || "(select a class)"}.</p>
           ) : (
             <div className="overflow-x-auto -mx-4 px-4">
               <Table>

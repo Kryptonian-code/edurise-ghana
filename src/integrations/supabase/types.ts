@@ -166,6 +166,36 @@ export type Database = {
           },
         ]
       }
+      audit_events: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          entity: string
+          entity_id: string | null
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          entity: string
+          entity_id?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          entity?: string
+          entity_id?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       classes: {
         Row: {
           academic_year: string
@@ -475,6 +505,63 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      report_cards: {
+        Row: {
+          academic_year: string
+          attendance_present: number | null
+          attendance_total: number | null
+          attitude: string | null
+          class_id: string | null
+          class_teacher_remark: string | null
+          conduct: string | null
+          created_at: string
+          created_by: string | null
+          headteacher_remark: string | null
+          id: string
+          position: string | null
+          student_id: string
+          subjects: Json
+          term: string
+          updated_at: string
+        }
+        Insert: {
+          academic_year: string
+          attendance_present?: number | null
+          attendance_total?: number | null
+          attitude?: string | null
+          class_id?: string | null
+          class_teacher_remark?: string | null
+          conduct?: string | null
+          created_at?: string
+          created_by?: string | null
+          headteacher_remark?: string | null
+          id?: string
+          position?: string | null
+          student_id: string
+          subjects?: Json
+          term: string
+          updated_at?: string
+        }
+        Update: {
+          academic_year?: string
+          attendance_present?: number | null
+          attendance_total?: number | null
+          attitude?: string | null
+          class_id?: string | null
+          class_teacher_remark?: string | null
+          conduct?: string | null
+          created_at?: string
+          created_by?: string | null
+          headteacher_remark?: string | null
+          id?: string
+          position?: string | null
+          student_id?: string
+          subjects?: Json
+          term?: string
+          updated_at?: string
         }
         Relationships: []
       }

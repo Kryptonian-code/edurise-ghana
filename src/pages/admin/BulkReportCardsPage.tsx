@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,40 +6,33 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Printer, GraduationCap } from "lucide-react";
+import { ArrowLeft, Printer, GraduationCap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { students as demoStudents, type Student } from "@/lib/demo-data";
-import { getBranding } from "@/lib/branding-store";
+import { fetchBranding, type SchoolBranding } from "@/lib/branding-store";
 import { defaultSubjectsForClass, getReportCard, gradeFor } from "@/lib/report-card-store";
 import { getStudentTermScores } from "@/lib/results-store";
+import { listStudents, type StudentRow } from "@/lib/students-store";
 
 const CLASSES = ["Crèche", "Nursery 1", "Nursery 2", "KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "JHS 1", "JHS 2", "JHS 3", "SHS 1", "SHS 2", "SHS 3"];
 const TERMS = ["Term 1", "Term 2", "Term 3"];
 const YEARS = ["2023/2024", "2024/2025", "2025/2026"];
 
-function loadStudents(): Student[] {
-  try {
-    const raw = localStorage.getItem("pa_students");
-    return raw ? JSON.parse(raw) : demoStudents;
-  } catch { return demoStudents; }
-}
-
 interface PrintableSubject { subject: string; classScore: number; examScore: number; remark?: string; }
 
-function buildSubjectsForStudent(student: Student, year: string, term: string): PrintableSubject[] {
-  // 1) Pull from Results module
-  const fromResults = getStudentTermScores(student.id, year, term, student.class);
-  // 2) Merge with saved report card (if exists) so manual edits survive
-  const saved = getReportCard(student.id, year, term);
+interface PreparedCard { student: StudentRow; subjects: PrintableSubject[]; }
+
+async function buildSubjectsForStudent(student: StudentRow, year: string, term: string): Promise<PrintableSubject[]> {
+  const klass = student.className || "";
+  const [fromResults, saved] = await Promise.all([
+    getStudentTermScores(student.id, year, term),
+    getReportCard(student.id, year, term),
+  ]);
   const map = new Map<string, PrintableSubject>();
-  for (const s of defaultSubjectsForClass(student.class)) {
-    map.set(s, { subject: s, classScore: 0, examScore: 0 });
-  }
+  for (const s of defaultSubjectsForClass(klass)) map.set(s, { subject: s, classScore: 0, examScore: 0 });
   for (const s of fromResults) map.set(s.subject, { subject: s.subject, classScore: s.classScore, examScore: s.examScore });
   if (saved) {
     for (const s of saved.subjects) {
       const existing = map.get(s.subject);
-      // Saved card overrides only if its scores are non-zero (manual edits) OR results didn't supply
       if (!existing || ((s.classScore || s.examScore) && !fromResults.find(r => r.subject === s.subject))) {
         map.set(s.subject, { subject: s.subject, classScore: s.classScore, examScore: s.examScore, remark: s.remark });
       }
@@ -50,39 +43,54 @@ function buildSubjectsForStudent(student: Student, year: string, term: string): 
 
 export default function BulkReportCardsPage() {
   const navigate = useNavigate();
-  const branding = useMemo(() => getBranding(), []);
-  const allStudents = useMemo(() => loadStudents(), []);
+  const [branding, setBranding] = useState<SchoolBranding | null>(null);
+  const [allStudents, setAllStudents] = useState<StudentRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [klass, setKlass] = useState<string>("JHS 2");
-  const [term, setTerm] = useState<string>("Term 1");
-  const [year, setYear] = useState<string>("2024/2025");
+  const [klass, setKlass] = useState("JHS 2");
+  const [term, setTerm] = useState("Term 1");
+  const [year, setYear] = useState("2024/2025");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [generated, setGenerated] = useState(false);
+  const [prepared, setPrepared] = useState<PreparedCard[] | null>(null);
+  const [preparing, setPreparing] = useState(false);
+
+  useEffect(() => {
+    Promise.all([fetchBranding(), listStudents()]).then(([b, s]) => {
+      setBranding(b); setAllStudents(s);
+    }).finally(() => setLoading(false));
+  }, []);
 
   const classStudents = useMemo(
-    () => allStudents.filter(s => s.class === klass && s.status === "Active"),
+    () => allStudents.filter(s => s.className === klass && s.status === "active"),
     [allStudents, klass]
   );
-
   const allSelected = classStudents.length > 0 && classStudents.every(s => selected[s.id]);
   const toggleAll = (v: boolean) => {
     const next: Record<string, boolean> = {};
     if (v) classStudents.forEach(s => next[s.id] = true);
     setSelected(next);
   };
-
   const chosen = classStudents.filter(s => selected[s.id]);
 
-  const handleGenerate = () => {
-    if (chosen.length === 0) { toast.error("Select at least one student to generate report cards."); return; }
-    setGenerated(true);
-    toast.success(`Prepared ${chosen.length} report card${chosen.length === 1 ? "" : "s"}.`);
+  const handleGenerate = async () => {
+    if (chosen.length === 0) { toast.error("Select at least one student."); return; }
+    setPreparing(true);
+    try {
+      const cards = await Promise.all(chosen.map(async (student) => ({
+        student, subjects: await buildSubjectsForStudent(student, year, term),
+      })));
+      setPrepared(cards);
+      toast.success(`Prepared ${cards.length} report card${cards.length === 1 ? "" : "s"}.`);
+    } catch (e: any) { toast.error(e.message || "Couldn't prepare report cards."); }
+    finally { setPreparing(false); }
   };
 
-  const handlePrint = () => {
-    if (!generated) handleGenerate();
-    setTimeout(() => window.print(), 150);
+  const handlePrint = async () => {
+    if (!prepared || prepared.length === 0) await handleGenerate();
+    setTimeout(() => window.print(), 200);
   };
+
+  if (loading || !branding) return <div className="p-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
   return (
     <div className="space-y-6">
@@ -97,7 +105,7 @@ export default function BulkReportCardsPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleGenerate}>Prepare</Button>
+          <Button variant="outline" onClick={handleGenerate} disabled={preparing}>{preparing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Prepare</Button>
           <Button onClick={handlePrint}><Printer className="h-4 w-4 mr-2" />Download / Print PDF</Button>
         </div>
       </div>
@@ -107,21 +115,21 @@ export default function BulkReportCardsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <Label>Class</Label>
-              <Select value={klass} onValueChange={v => { setKlass(v); setSelected({}); setGenerated(false); }}>
+              <Select value={klass} onValueChange={v => { setKlass(v); setSelected({}); setPrepared(null); }}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>{CLASSES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label>Term</Label>
-              <Select value={term} onValueChange={v => { setTerm(v); setGenerated(false); }}>
+              <Select value={term} onValueChange={v => { setTerm(v); setPrepared(null); }}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>{TERMS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label>Academic Year</Label>
-              <Select value={year} onValueChange={v => { setYear(v); setGenerated(false); }}>
+              <Select value={year} onValueChange={v => { setYear(v); setPrepared(null); }}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>{YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
               </Select>
@@ -138,16 +146,15 @@ export default function BulkReportCardsPage() {
             </div>
             <div className="divide-y divide-border max-h-96 overflow-y-auto">
               {classStudents.length === 0 && (
-                <p className="p-6 text-center text-sm text-muted-foreground">No active students found in {klass}.</p>
+                <p className="p-6 text-center text-sm text-muted-foreground">No active students in {klass}.</p>
               )}
               {classStudents.map(s => (
                 <label key={s.id} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/40">
                   <Checkbox checked={!!selected[s.id]} onCheckedChange={(v) => setSelected(prev => ({ ...prev, [s.id]: !!v }))} />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{s.firstName} {s.lastName}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{s.studentId}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{s.admissionNumber}</p>
                   </div>
-                  {s.stream && <Badge variant="outline">Stream {s.stream}</Badge>}
                 </label>
               ))}
             </div>
@@ -155,11 +162,9 @@ export default function BulkReportCardsPage() {
         </CardContent>
       </Card>
 
-      {/* Printable bulk area */}
-      {generated && chosen.length > 0 && (
+      {prepared && prepared.length > 0 && (
         <div className="bulk-print-area space-y-6">
-          {chosen.map((student) => {
-            const subjects = buildSubjectsForStudent(student, year, term);
+          {prepared.map(({ student, subjects }) => {
             const totals = subjects.map(s => Math.min(100, (s.classScore || 0) + (s.examScore || 0)));
             const aggregate = totals.reduce((a, b) => a + b, 0);
             const average = totals.length ? aggregate / totals.length : 0;
@@ -168,8 +173,8 @@ export default function BulkReportCardsPage() {
               <div key={student.id} className="report-page mx-auto bg-white text-black border border-border" style={{ width: "210mm", minHeight: "297mm", padding: "14mm", pageBreakAfter: "always" }}>
                 <div className="flex items-start justify-between border-b-2 pb-4" style={{ borderColor: "#062f26" }}>
                   <div className="flex items-center gap-3">
-                    {branding.logoDataUrl ? (
-                      <img src={branding.logoDataUrl} alt={branding.name} className="h-16 w-16 object-contain rounded" />
+                    {branding.logoUrl ? (
+                      <img src={branding.logoUrl} alt={branding.name} className="h-16 w-16 object-contain rounded" />
                     ) : (
                       <div className="h-16 w-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "#062f26" }}>
                         <GraduationCap className="h-9 w-9" style={{ color: "#d7c7a3" }} />
@@ -190,11 +195,11 @@ export default function BulkReportCardsPage() {
 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-4 text-sm">
                   <Info label="Student Name" value={`${student.firstName} ${student.lastName}`} />
-                  <Info label="Admission No." value={student.studentId} />
-                  <Info label="Class" value={`${student.class}${student.stream ? ` (${student.stream})` : ""}`} />
-                  <Info label="Gender" value={student.gender} />
+                  <Info label="Admission No." value={student.admissionNumber} />
+                  <Info label="Class" value={student.className || "—"} />
+                  <Info label="Gender" value={student.gender || "—"} />
                   <Info label="Date of Birth" value={student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString("en-GB") : "—"} />
-                  <Info label="Guardian" value={student.guardian} />
+                  <Info label="Guardian" value={student.guardianName || "—"} />
                 </div>
 
                 <table className="w-full mt-5 text-sm border-collapse">
@@ -236,12 +241,6 @@ export default function BulkReportCardsPage() {
                 <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
                   <Sign label="Class Teacher" />
                   <Sign label="Headteacher" />
-                </div>
-
-                <div className="mt-5 text-[10px] border-t pt-2" style={{ borderColor: "#062f26" }}>
-                  <p className="font-semibold mb-1">Grading Key (WAEC Standard)</p>
-                  <p>A1: 80–100 Excellent • B2: 75–79 Very Good • B3: 70–74 Good • C4–C6: 55–69 Credit • D7–E8: 45–54 Pass • F9: Below 45 Fail</p>
-                  <p className="mt-2 italic">Generated on {new Date().toLocaleDateString("en-GB")} • {branding.name} • {branding.website}</p>
                 </div>
               </div>
             );

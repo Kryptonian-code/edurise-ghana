@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,39 +8,51 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Bell, Trash2 } from "lucide-react";
-import { announcements as demoAnnouncements } from "@/lib/demo-data";
+import { Plus, Bell, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { AnnouncementRow, createAnnouncement, deleteAnnouncement, listAnnouncements } from "@/lib/announcements-store";
+import { logAudit } from "@/lib/audit";
+
+const AUDIENCES = ["all", "parents", "teachers", "students"] as const;
 
 export default function AnnouncementsPage() {
-  const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem("pa_announcements");
-    return saved ? JSON.parse(saved) : demoAnnouncements;
-  });
+  const [items, setItems] = useState<AnnouncementRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", content: "", audience: "All" });
+  const [form, setForm] = useState({ title: "", body: "", audience: "all" });
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const persist = (list: typeof demoAnnouncements) => {
-    setItems(list);
-    localStorage.setItem("pa_announcements", JSON.stringify(list));
+  const load = async () => {
+    setLoading(true);
+    try { setItems(await listAnnouncements()); }
+    catch (e: any) { toast.error(e.message || "Failed to load announcements"); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const handleCreate = async () => {
+    if (!form.title || !form.body) { toast.error("Please fill in title and message."); return; }
+    setSaving(true);
+    try {
+      const row = await createAnnouncement(form);
+      setItems(prev => [row, ...prev]);
+      logAudit("announcement.create", "announcement", row.id, { audience: row.audience });
+      toast.success("Announcement published.");
+      setDialogOpen(false);
+      setForm({ title: "", body: "", audience: "all" });
+    } catch (e: any) { toast.error(e.message || "Failed to publish"); }
+    finally { setSaving(false); }
   };
 
-  const handleCreate = () => {
-    if (!form.title || !form.content) {
-      toast.error("Please fill in title and message.");
-      return;
-    }
-    persist([{ id: Date.now().toString(), title: form.title, content: form.content, audience: form.audience, date: new Date().toISOString().split("T")[0] }, ...items]);
-    toast.success("Announcement published.");
-    setDialogOpen(false);
-    setForm({ title: "", content: "", audience: "All" });
-  };
-
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteId) return;
-    persist(items.filter((a: any) => a.id !== deleteId));
-    toast.success("Announcement removed.");
+    try {
+      await deleteAnnouncement(deleteId);
+      setItems(prev => prev.filter(a => a.id !== deleteId));
+      logAudit("announcement.delete", "announcement", deleteId);
+      toast.success("Announcement removed.");
+    } catch (e: any) { toast.error(e.message || "Failed to delete"); }
     setDeleteId(null);
   };
 
@@ -54,7 +66,9 @@ export default function AnnouncementsPage() {
         <Button className="font-semibold" onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />New Announcement</Button>
       </div>
 
-      {items.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+      ) : items.length === 0 ? (
         <Card className="border-border">
           <CardContent className="p-12 text-center">
             <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -65,7 +79,7 @@ export default function AnnouncementsPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {items.map((a: any) => (
+          {items.map(a => (
             <Card key={a.id} className="border-border hover:shadow-md transition-shadow">
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-start justify-between gap-3">
@@ -75,10 +89,10 @@ export default function AnnouncementsPage() {
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-bold text-foreground mb-1">{a.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-2">{a.content}</p>
+                      <p className="text-sm text-muted-foreground mb-2 whitespace-pre-wrap">{a.body}</p>
                       <div className="flex flex-wrap gap-2 items-center">
-                        <Badge variant="secondary" className="text-xs">{a.audience}</Badge>
-                        <span className="text-xs text-muted-foreground">{new Date(a.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</span>
+                        <Badge variant="secondary" className="text-xs capitalize">{a.audience}</Badge>
+                        <span className="text-xs text-muted-foreground">{new Date(a.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</span>
                       </div>
                     </div>
                   </div>
@@ -103,17 +117,15 @@ export default function AnnouncementsPage() {
               <Select value={form.audience} onValueChange={v => setForm(p => ({ ...p, audience: v }))}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {["All", "Parents", "Teachers", "Students"].map(a => (
-                    <SelectItem key={a} value={a}>{a}</SelectItem>
-                  ))}
+                  {AUDIENCES.map(a => (<SelectItem key={a} value={a} className="capitalize">{a}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Message *</Label><Textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} className="mt-1" rows={4} placeholder="Write your announcement here..." /></div>
+            <div><Label>Message *</Label><Textarea value={form.body} onChange={e => setForm(p => ({ ...p, body: e.target.value }))} className="mt-1" rows={4} placeholder="Write your announcement here..." /></div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate}>Publish</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={saving}>{saving ? "Publishing..." : "Publish"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

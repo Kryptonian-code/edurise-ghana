@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen, DollarSign,
   ClipboardList, Bell, BarChart3, Settings, LogOut, Menu, ChevronDown,
-  UserCheck, FileText, Globe, X, Mail
+  UserCheck, FileText, Globe, X, Mail, Link2
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ const sidebarItems = [
   { label: "Analytics", path: "/admin/analytics", icon: BarChart3 },
   { label: "CMS", path: "/admin/cms", icon: Globe },
   { label: "Invitations", path: "/admin/invitations", icon: Mail },
+  { label: "Parent Links", path: "/admin/parent-links", icon: Link2 },
   { label: "Settings", path: "/admin/settings", icon: Settings },
 ];
 

@@ -9,6 +9,7 @@ interface AuthContextValue {
   session: Session | null;
   roles: AppRole[];
   loading: boolean;
+  rolesLoading: boolean;
   isAdmin: boolean;
   isTeacher: boolean;
   isParent: boolean;
@@ -31,35 +32,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState(true);
 
   const loadRoles = async (userId: string | undefined) => {
-    if (!userId) { setRoles([]); return; }
+    if (!userId) { setRoles([]); setRolesLoading(false); return; }
+    setRolesLoading(true);
     const { data } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
     setRoles((data || []).map(r => r.role as AppRole));
+    setRolesLoading(false);
   };
 
   useEffect(() => {
-    // Set up listener FIRST
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
-      // Defer Supabase calls to avoid deadlock
       if (newSession?.user) {
+        setRolesLoading(true);
         setTimeout(() => { loadRoles(newSession.user.id); }, 0);
       } else {
         setRoles([]);
+        setRolesLoading(false);
       }
     });
 
-    // Then check existing session
     supabase.auth.getSession().then(({ data: { session: existing } }) => {
       setSession(existing);
       setUser(existing?.user ?? null);
       if (existing?.user) loadRoles(existing.user.id).finally(() => setLoading(false));
-      else setLoading(false);
+      else { setRolesLoading(false); setLoading(false); }
     });
 
     return () => sub.subscription.unsubscribe();
@@ -81,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const primaryPortalPath = portalPathFor(roles);
 
   return (
-    <AuthContext.Provider value={{ user, session, roles, loading, isAdmin, isTeacher, isParent, hasRole, primaryPortalPath, signOut, refreshRoles }}>
+    <AuthContext.Provider value={{ user, session, roles, loading, rolesLoading, isAdmin, isTeacher, isParent, hasRole, primaryPortalPath, signOut, refreshRoles }}>
       {children}
     </AuthContext.Provider>
   );

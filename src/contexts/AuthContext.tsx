@@ -9,6 +9,7 @@ interface AuthContextValue {
   session: Session | null;
   roles: AppRole[];
   loading: boolean;
+  rolesLoading: boolean;
   isAdmin: boolean;
   isTeacher: boolean;
   isParent: boolean;

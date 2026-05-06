@@ -42,6 +42,8 @@ import CMSPage from "@/pages/admin/CMSPage";
 import SettingsPage from "@/pages/admin/SettingsPage";
 import InvitationsPage from "@/pages/admin/InvitationsPage";
 import ParentLinksPage from "@/pages/admin/ParentLinksPage";
+import RolesPage from "@/pages/admin/RolesPage";
+import AuditLogPage from "@/pages/admin/AuditLogPage";
 import AcceptInvitePage from "@/pages/AcceptInvitePage";
 
 // CMS Sub-pages
@@ -118,6 +120,8 @@ const App = () => (
             <Route path="/admin/settings" element={<SettingsPage />} />
             <Route path="/admin/invitations" element={<InvitationsPage />} />
             <Route path="/admin/parent-links" element={<ParentLinksPage />} />
+            <Route path="/admin/roles" element={<RolesPage />} />
+            <Route path="/admin/audit-log" element={<AuditLogPage />} />
           </Route>
 
           {/* Portals */}

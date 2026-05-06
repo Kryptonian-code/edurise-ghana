@@ -9,6 +9,7 @@ import { GraduationCap, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { logAudit } from "@/lib/audit";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -38,17 +39,19 @@ export default function LoginPage() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: signinEmail.trim(),
       password: signinPassword,
     });
     setSubmitting(false);
     if (error) {
+      await logAudit("auth.login_failed", "auth", undefined, { email: signinEmail.trim(), reason: error.message });
       toast.error(error.message === "Invalid login credentials"
         ? "Incorrect email or password."
         : error.message);
       return;
     }
+    await logAudit("auth.login_success", "auth", data.user?.id, { email: signinEmail.trim() });
     toast.success("Welcome back!");
   };
 

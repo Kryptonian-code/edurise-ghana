@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      admission_applications: {
+        Row: {
+          child_dob: string | null
+          child_name: string
+          class_applied: string
+          gender: string | null
+          id: string
+          notes: string | null
+          parent_email: string | null
+          parent_name: string
+          parent_phone: string
+          previous_school: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_at: string
+        }
+        Insert: {
+          child_dob?: string | null
+          child_name: string
+          class_applied: string
+          gender?: string | null
+          id?: string
+          notes?: string | null
+          parent_email?: string | null
+          parent_name: string
+          parent_phone: string
+          previous_school?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string
+        }
+        Update: {
+          child_dob?: string | null
+          child_name?: string
+          class_applied?: string
+          gender?: string | null
+          id?: string
+          notes?: string | null
+          parent_email?: string | null
+          parent_name?: string
+          parent_phone?: string
+          previous_school?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string
+        }
+        Relationships: []
+      }
       admissions: {
         Row: {
           address: string | null
@@ -226,6 +277,27 @@ export type Database = {
           level?: string
           name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      cms_content: {
+        Row: {
+          data: Json
+          section: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          data?: Json
+          section: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          data?: Json
+          section?: string
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }

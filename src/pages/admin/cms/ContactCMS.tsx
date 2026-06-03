@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,11 @@ import { ArrowLeft, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { schoolInfo } from "@/lib/demo-data";
+import { useCMS } from "@/lib/cms-store";
 
 export default function ContactCMS() {
+  const { getSection, updateSection } = useCMS();
+  const contact = getSection("contact");
   const [form, setForm] = useState({
     name: schoolInfo.name,
     address: schoolInfo.address,
@@ -25,9 +28,20 @@ export default function ContactCMS() {
   });
   const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
+  useEffect(() => {
+    setForm(prev => ({ ...prev, ...contact }));
+  }, [contact]);
+
+  const handleSave = async () => {
     setSaving(true);
-    setTimeout(() => { setSaving(false); toast.success("Contact information updated!"); }, 600);
+    try {
+      await updateSection("contact", form);
+      toast.success("Contact information updated!");
+    } catch {
+      toast.error("Unable to save contact information.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

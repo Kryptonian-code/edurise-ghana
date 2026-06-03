@@ -1,8 +1,13 @@
 import { Link } from "react-router-dom";
 import { GraduationCap, Phone, Mail, MapPin } from "lucide-react";
 import { schoolInfo } from "@/lib/demo-data";
+import { useCMS } from "@/lib/cms-store";
 
 export default function PublicFooter() {
+  const { getSection } = useCMS();
+  const contact = getSection("contact");
+  const footer = getSection("footer");
+
   return (
     <footer className="bg-primary text-primary-foreground">
       <div className="container-wide mx-auto px-4 py-12">
@@ -15,7 +20,7 @@ export default function PublicFooter() {
             <p className="text-sm text-primary-foreground/70 mb-4">
               Providing quality education and building future leaders since {schoolInfo.founded}.
             </p>
-            <p className="text-xs text-accent font-medium italic">"{schoolInfo.motto}"</p>
+            <p className="text-xs text-accent font-medium italic">"{footer.tagline || schoolInfo.motto}"</p>
           </div>
 
           <div>
@@ -45,15 +50,15 @@ export default function PublicFooter() {
           <div>
             <h4 className="font-semibold text-accent mb-4">Contact Us</h4>
             <ul className="space-y-3 text-sm text-primary-foreground/70">
-              <li className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5 text-accent shrink-0" />{schoolInfo.address}</li>
-              <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-accent" />{schoolInfo.phone}</li>
-              <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-accent" />{schoolInfo.email}</li>
+              <li className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5 text-accent shrink-0" />{contact.address || schoolInfo.address}</li>
+              <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-accent" />{contact.phone || schoolInfo.phone}</li>
+              <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-accent" />{contact.email || schoolInfo.email}</li>
             </ul>
           </div>
         </div>
 
         <div className="border-t border-sidebar-border mt-8 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-primary-foreground/50">
-          <p>© {new Date().getFullYear()} {schoolInfo.name}. All rights reserved.</p>
+          <p>{footer.copyright || `© ${new Date().getFullYear()} ${schoolInfo.name}. All rights reserved.`}</p>
           <div className="flex gap-4 mt-2 md:mt-0">
             <Link to="/faq" className="hover:text-accent">FAQ</Link>
             <span>Privacy Policy</span>

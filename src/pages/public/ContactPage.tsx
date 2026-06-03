@@ -6,8 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Phone, Mail, MapPin, Clock } from "lucide-react";
 import { schoolInfo } from "@/lib/demo-data";
 import { toast } from "sonner";
+import { useCMS } from "@/lib/cms-store";
 
 export default function ContactPage() {
+  const { getSection } = useCMS();
+  const contact = getSection("contact");
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success("Message sent! We will respond within 24 hours.");
@@ -26,10 +30,10 @@ export default function ContactPage() {
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="space-y-6">
               {[
-                { icon: MapPin, title: "Address", text: schoolInfo.address },
-                { icon: Phone, title: "Phone", text: schoolInfo.phone },
-                { icon: Mail, title: "Email", text: schoolInfo.email },
-                { icon: Clock, title: "Office Hours", text: "Mon - Fri: 7:30 AM - 4:00 PM" },
+                { icon: MapPin, title: "Address", text: contact.address || schoolInfo.address },
+                { icon: Phone, title: "Phone", text: contact.phone || schoolInfo.phone },
+                { icon: Mail, title: "Email", text: contact.email || schoolInfo.email },
+                { icon: Clock, title: "Office Hours", text: contact.officeHours || "Mon - Fri: 7:30 AM - 4:00 PM" },
               ].map((item) => (
                 <Card key={item.title} className="border-border">
                   <CardContent className="p-4 flex gap-3">

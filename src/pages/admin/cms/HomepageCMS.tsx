@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,13 +16,20 @@ export default function HomepageCMS() {
   const [form, setForm] = useState({ ...homepage });
   const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
+  useEffect(() => {
+    setForm({ ...homepage });
+  }, [homepage]);
+
+  const handleSave = async () => {
     setSaving(true);
-    setTimeout(() => {
-      updateSection("homepage", form);
-      setSaving(false);
+    try {
+      await updateSection("homepage", form);
       toast.success("Homepage content updated successfully!");
-    }, 600);
+    } catch {
+      toast.error("Unable to save homepage content.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {

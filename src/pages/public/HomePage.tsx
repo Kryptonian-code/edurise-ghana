@@ -4,8 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { GraduationCap, Users, Award, BookOpen, Star, Calendar, ArrowRight, CheckCircle2 } from "lucide-react";
 import { schoolInfo, stats, programmes, testimonials, newsArticles, events } from "@/lib/demo-data";
 import heroImage from "@/assets/hero-school.jpg";
+import { useCMS } from "@/lib/cms-store";
 
 export default function HomePage() {
+  const { getSection } = useCMS();
+  const homepage = getSection("homepage");
+
   return (
     <div>
       {/* Hero */}
@@ -18,22 +22,20 @@ export default function HomePage() {
           <div className="max-w-2xl">
             <p className="text-accent font-semibold text-sm uppercase tracking-wider mb-4 animate-fade-in">Welcome to {schoolInfo.name}</p>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-primary-foreground leading-tight mb-6 animate-fade-in">
-              Building Future Leaders Through{" "}
-              <span className="text-accent">Excellence</span>
+              {homepage.heroHeading || "Building Future Leaders Through Excellence"}
             </h1>
             <p className="text-lg text-primary-foreground/80 mb-8 max-w-xl animate-fade-in">
-              A premier private school in Accra offering quality education from Crèche to SHS. 
-              We nurture young minds to become confident, responsible, and globally competitive citizens.
+              {homepage.heroSubtitle}
             </p>
             <div className="flex flex-wrap gap-3 animate-fade-in">
               <Link to="/admissions">
                 <Button variant="secondary" size="lg" className="font-bold text-base">
-                  Apply for Admission <ArrowRight className="ml-2 h-4 w-4" />
+                  {homepage.heroCTA1 || "Apply for Admission"} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
               <Link to="/about">
                 <Button variant="outline" size="lg" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground font-bold text-base">
-                  Learn More
+                  {homepage.heroCTA2 || "Learn More"}
                 </Button>
               </Link>
             </div>
@@ -67,22 +69,13 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-6">
-                Why Choose <span className="text-primary">Prestige Academy?</span>
+                {homepage.whyChooseTitle || "Why Choose Prestige Academy?"}
               </h2>
               <p className="text-muted-foreground mb-6 leading-relaxed">
-                At Prestige Academy, we believe every child has the potential to achieve greatness. Our holistic approach 
-                to education combines rigorous academics with character development, sports, arts, and technology to produce 
-                well-rounded graduates ready to lead in the 21st century.
+                {homepage.whyChooseText}
               </p>
               <ul className="space-y-3">
-                {[
-                  "Experienced and dedicated teaching staff",
-                  "Modern ICT and science laboratories",
-                  "Small class sizes for personalised attention",
-                  "Strong BECE and WASSCE track record",
-                  "Safe and nurturing learning environment",
-                  "Co-curricular activities and leadership programmes",
-                ].map((item) => (
+                {(homepage.whyChoosePoints || []).map((item: string) => (
                   <li key={item} className="flex items-start gap-2">
                     <CheckCircle2 className="h-5 w-5 text-success mt-0.5 shrink-0" />
                     <span className="text-foreground text-sm">{item}</span>
@@ -203,14 +196,14 @@ export default function HomePage() {
       <section className="section-padding" style={{ background: "var(--hero-gradient)" }}>
         <div className="container-wide mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
-            Ready to Give Your Child the Best Education?
+            {homepage.ctaHeading || "Ready to Give Your Child the Best Education?"}
           </h2>
           <p className="text-primary-foreground/80 mb-8 max-w-xl mx-auto">
-            Admissions are currently open for the 2025/2026 academic year. Secure your child's place today.
+            {homepage.ctaText}
           </p>
           <Link to="/admissions">
             <Button variant="secondary" size="lg" className="font-bold text-base">
-              Start Application <ArrowRight className="ml-2 h-4 w-4" />
+              {homepage.ctaButton || "Start Application"} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
         </div>

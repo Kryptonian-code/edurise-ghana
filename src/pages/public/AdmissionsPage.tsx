@@ -7,14 +7,48 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle2, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { submitApplication } from "@/lib/admissions-store";
 
 export default function AdmissionsPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [gender, setGender] = useState("");
+  const [classApplied, setClassApplied] = useState("");
+  const [relationship, setRelationship] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSubmitted(true);
-    toast.success("Application submitted successfully! We will contact you soon.");
+    if (!gender || !classApplied || !relationship) {
+      toast.error("Please complete all required selections.");
+      return;
+    }
+
+    const form = new FormData(e.currentTarget);
+    setSubmitting(true);
+    try {
+      await submitApplication({
+        childName: `${form.get("firstName")} ${form.get("lastName")}`.trim(),
+        childDob: String(form.get("childDob") || ""),
+        gender,
+        classApplied,
+        parentName: String(form.get("parentName") || ""),
+        parentPhone: String(form.get("parentPhone") || ""),
+        parentEmail: String(form.get("parentEmail") || ""),
+        previousSchool: String(form.get("previousSchool") || ""),
+        notes: [
+          `Relationship: ${relationship}`,
+          `Residential Address: ${form.get("address") || ""}`,
+          `Medical Notes: ${form.get("medicalNotes") || ""}`,
+          `Additional Information: ${form.get("additionalInfo") || ""}`,
+        ].join("\n"),
+      });
+      setSubmitted(true);
+      toast.success("Application submitted successfully! We will contact you soon.");
+    } catch {
+      toast.error("Unable to submit application. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -81,21 +115,21 @@ export default function AdmissionsPage() {
                     <h2 className="text-2xl font-bold text-foreground mb-6">Online Application Form</h2>
                     <form onSubmit={handleSubmit} className="space-y-6">
                       <div className="grid sm:grid-cols-2 gap-4">
-                        <div><Label>Child's First Name *</Label><Input required placeholder="e.g. Kwame" className="mt-1" /></div>
-                        <div><Label>Child's Last Name *</Label><Input required placeholder="e.g. Asante" className="mt-1" /></div>
+                        <div><Label>Child's First Name *</Label><Input name="firstName" required placeholder="e.g. Kwame" className="mt-1" /></div>
+                        <div><Label>Child's Last Name *</Label><Input name="lastName" required placeholder="e.g. Asante" className="mt-1" /></div>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
-                        <div><Label>Date of Birth *</Label><Input required type="date" className="mt-1" /></div>
+                        <div><Label>Date of Birth *</Label><Input name="childDob" required type="date" className="mt-1" /></div>
                         <div>
                           <Label>Gender *</Label>
-                          <Select required><SelectTrigger className="mt-1"><SelectValue placeholder="Select gender" /></SelectTrigger>
+                          <Select value={gender} onValueChange={setGender}><SelectTrigger className="mt-1"><SelectValue placeholder="Select gender" /></SelectTrigger>
                             <SelectContent><SelectItem value="male">Male</SelectItem><SelectItem value="female">Female</SelectItem></SelectContent>
                           </Select>
                         </div>
                       </div>
                       <div>
                         <Label>Class Applying For *</Label>
-                        <Select required><SelectTrigger className="mt-1"><SelectValue placeholder="Select class" /></SelectTrigger>
+                        <Select value={classApplied} onValueChange={setClassApplied}><SelectTrigger className="mt-1"><SelectValue placeholder="Select class" /></SelectTrigger>
                           <SelectContent>
                             {["Crèche", "Nursery 1", "Nursery 2", "KG 1", "KG 2", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "JHS 1", "JHS 2", "JHS 3", "SHS 1"].map(c => (
                               <SelectItem key={c} value={c}>{c}</SelectItem>
@@ -103,28 +137,28 @@ export default function AdmissionsPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div><Label>Previous School</Label><Input placeholder="Name of previous school" className="mt-1" /></div>
+                      <div><Label>Previous School</Label><Input name="previousSchool" placeholder="Name of previous school" className="mt-1" /></div>
 
                       <hr className="border-border" />
                       <h3 className="font-bold text-foreground">Parent / Guardian Information</h3>
                       <div className="grid sm:grid-cols-2 gap-4">
-                        <div><Label>Guardian's Full Name *</Label><Input required placeholder="e.g. Mr. Kofi Asante" className="mt-1" /></div>
+                        <div><Label>Guardian's Full Name *</Label><Input name="parentName" required placeholder="e.g. Mr. Kofi Asante" className="mt-1" /></div>
                         <div><Label>Relationship *</Label>
-                          <Select required><SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+                          <Select value={relationship} onValueChange={setRelationship}><SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
                             <SelectContent><SelectItem value="father">Father</SelectItem><SelectItem value="mother">Mother</SelectItem><SelectItem value="guardian">Guardian</SelectItem></SelectContent>
                           </Select>
                         </div>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
-                        <div><Label>Phone Number *</Label><Input required placeholder="+233 24 XXX XXXX" className="mt-1" /></div>
-                        <div><Label>Email Address</Label><Input type="email" placeholder="email@example.com" className="mt-1" /></div>
+                        <div><Label>Phone Number *</Label><Input name="parentPhone" required placeholder="+233 24 XXX XXXX" className="mt-1" /></div>
+                        <div><Label>Email Address</Label><Input name="parentEmail" type="email" placeholder="email@example.com" className="mt-1" /></div>
                       </div>
-                      <div><Label>Residential Address *</Label><Input required placeholder="House number, street, city" className="mt-1" /></div>
-                      <div><Label>Medical Notes (if any)</Label><Textarea placeholder="Any medical conditions or allergies we should be aware of" className="mt-1" /></div>
-                      <div><Label>Additional Information</Label><Textarea placeholder="Any other information you'd like to share" className="mt-1" /></div>
+                      <div><Label>Residential Address *</Label><Input name="address" required placeholder="House number, street, city" className="mt-1" /></div>
+                      <div><Label>Medical Notes (if any)</Label><Textarea name="medicalNotes" placeholder="Any medical conditions or allergies we should be aware of" className="mt-1" /></div>
+                      <div><Label>Additional Information</Label><Textarea name="additionalInfo" placeholder="Any other information you'd like to share" className="mt-1" /></div>
 
-                      <Button type="submit" size="lg" className="w-full font-bold">
-                        Submit Application <ArrowRight className="ml-2 h-4 w-4" />
+                      <Button type="submit" size="lg" className="w-full font-bold" disabled={submitting}>
+                        {submitting ? "Submitting..." : "Submit Application"} <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                     </form>
                   </CardContent>

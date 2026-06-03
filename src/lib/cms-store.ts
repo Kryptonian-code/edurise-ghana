@@ -1,11 +1,8 @@
-// Simple client-side CMS store using React state + localStorage
-// In production, this would be backed by a database via Lovable Cloud
-
 import { useState, useCallback, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { schoolInfo } from "@/lib/demo-data";
 
 type CMSData = Record<string, any>;
-
-const STORAGE_KEY = "prestige_cms_data";
 
 const defaultCMSData: CMSData = {
   homepage: {
@@ -41,7 +38,18 @@ const defaultCMSData: CMSData = {
     ],
   },
   contact: {
+    name: schoolInfo.name,
+    address: schoolInfo.address,
+    phone: schoolInfo.phone,
+    email: schoolInfo.email,
+    whatsapp: schoolInfo.whatsapp,
+    poBox: schoolInfo.poBox,
+    digitalAddress: schoolInfo.digitalAddress,
     officeHours: "Mon - Fri: 7:30 AM - 4:00 PM",
+    facebook: "",
+    instagram: "",
+    twitter: "",
+    youtube: "",
   },
   footer: {
     copyright: "© 2025 Prestige Academy International. All rights reserved.",
@@ -49,41 +57,60 @@ const defaultCMSData: CMSData = {
   },
 };
 
-function loadCMSData(): CMSData {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      return { ...defaultCMSData, ...JSON.parse(saved) };
-    }
-  } catch {}
-  return defaultCMSData;
-}
-
-function saveCMSData(data: CMSData) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {}
+function mergeCMSData(rows: Array<{ section: string; data: any }>): CMSData {
+  return rows.reduce<CMSData>((acc, row) => ({
+    ...acc,
+    [row.section]: { ...(acc[row.section] || {}), ...(row.data || {}) },
+  }), { ...defaultCMSData });
 }
 
 export function useCMS() {
-  const [data, setData] = useState<CMSData>(loadCMSData);
+  const [data, setData] = useState<CMSData>(defaultCMSData);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    saveCMSData(data);
-  }, [data]);
+    let active = true;
 
-  const updateSection = useCallback((section: string, updates: Record<string, any>) => {
+    const load = async () => {
+      const { data: rows, error } = await supabase
+        .from("cms_content")
+        .select("section,data");
+
+      if (!active) return;
+      if (!error && rows) {
+        setData(mergeCMSData(rows));
+      }
+      setLoading(false);
+    };
+
+    load();
+    return () => { active = false; };
+  }, []);
+
+  const updateSection = useCallback(async (section: string, updates: Record<string, any>) => {
+    const nextSection = { ...(data[section] || {}), ...updates };
     setData(prev => ({
       ...prev,
-      [section]: { ...prev[section], ...updates },
+      [section]: nextSection,
     }));
-  }, []);
+
+    const { data: authData } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from("cms_content")
+      .upsert({
+        section,
+        data: nextSection,
+        updated_by: authData.user?.id || null,
+      });
+
+    if (error) throw error;
+  }, [data]);
 
   const getSection = useCallback((section: string) => {
     return data[section] || {};
   }, [data]);
 
-  return { data, updateSection, getSection };
+  return { data, loading, updateSection, getSection };
 }
 
 export { defaultCMSData };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,13 +15,20 @@ export default function AboutCMS() {
   const [form, setForm] = useState({ ...about });
   const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
+  useEffect(() => {
+    setForm({ ...about });
+  }, [about]);
+
+  const handleSave = async () => {
     setSaving(true);
-    setTimeout(() => {
-      updateSection("about", form);
-      setSaving(false);
+    try {
+      await updateSection("about", form);
       toast.success("About page updated successfully!");
-    }, 600);
+    } catch {
+      toast.error("Unable to save about page content.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateValue = (index: number, field: string, value: string) => {

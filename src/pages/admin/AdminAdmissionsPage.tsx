@@ -21,10 +21,14 @@ export default function AdminAdmissionsPage() {
   }, []);
 
   const updateStatus = async (id: string, status: AdmissionStatus) => {
-    const updatedApp = await updateApplicationStatus(id, status);
-    setApps(prev => prev.map(a => a.id === id ? updatedApp : a));
-    toast.success(`Application ${status.toLowerCase()}.`);
-    setViewApp(null);
+    try {
+      const updatedApp = await updateApplicationStatus(id, status);
+      setApps(prev => prev.map(a => a.id === id ? updatedApp : a));
+      toast.success(`Application ${status.toLowerCase()}.`);
+      setViewApp(null);
+    } catch {
+      toast.error("Unable to update application status.");
+    }
   };
 
   const pending = apps.filter((a: any) => a.status === "Pending" || a.status === "Under Review").length;

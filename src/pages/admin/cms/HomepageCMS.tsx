@@ -23,7 +23,7 @@ export default function HomepageCMS() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      updateSection("homepage", form);
+      await updateSection("homepage", form);
       toast.success("Homepage content updated successfully!");
     } catch {
       toast.error("Unable to save homepage content.");

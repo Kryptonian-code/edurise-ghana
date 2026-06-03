@@ -1,28 +1,28 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { CheckCircle, XCircle, Eye, FileText } from "lucide-react";
-import { admissionApplications as demoApps } from "@/lib/demo-data";
+import { AdmissionApplication, AdmissionStatus, listApplications, updateApplicationStatus } from "@/lib/admissions-store";
 import { toast } from "sonner";
 
 export default function AdminAdmissionsPage() {
-  const [apps, setApps] = useState(() => {
-    const saved = localStorage.getItem("pa_admissions");
-    return saved ? JSON.parse(saved) : demoApps;
-  });
-  const [viewApp, setViewApp] = useState<typeof demoApps[0] | null>(null);
+  const [apps, setApps] = useState<AdmissionApplication[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [viewApp, setViewApp] = useState<AdmissionApplication | null>(null);
 
-  const persist = (list: typeof demoApps) => {
-    setApps(list);
-    localStorage.setItem("pa_admissions", JSON.stringify(list));
-  };
+  useEffect(() => {
+    listApplications()
+      .then(setApps)
+      .catch(() => toast.error("Unable to load admission applications."))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const updateStatus = (id: string, status: string) => {
-    const updated = apps.map((a: typeof demoApps[0]) => a.id === id ? { ...a, status } : a);
-    persist(updated);
+  const updateStatus = async (id: string, status: AdmissionStatus) => {
+    const updatedApp = await updateApplicationStatus(id, status);
+    setApps(prev => prev.map(a => a.id === id ? updatedApp : a));
     toast.success(`Application ${status.toLowerCase()}.`);
     setViewApp(null);
   };
@@ -52,7 +52,13 @@ export default function AdminAdmissionsPage() {
         ))}
       </div>
 
-      {apps.length === 0 ? (
+      {loading ? (
+        <Card className="border-border">
+          <CardContent className="p-12 text-center">
+            <p className="text-sm text-muted-foreground">Loading applications...</p>
+          </CardContent>
+        </Card>
+      ) : apps.length === 0 ? (
         <Card className="border-border">
           <CardContent className="p-12 text-center">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -77,7 +83,7 @@ export default function AdminAdmissionsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {apps.map((a: any) => (
+                  {apps.map((a) => (
                     <TableRow key={a.id}>
                       <TableCell className="font-medium whitespace-nowrap">{a.childName}</TableCell>
                       <TableCell className="hidden sm:table-cell">{a.parentName}</TableCell>
@@ -118,10 +124,12 @@ export default function AdminAdmissionsPage() {
                 <div><p className="text-muted-foreground">Class Applied</p><p className="font-medium">{viewApp.classApplied}</p></div>
                 <div><p className="text-muted-foreground">Parent/Guardian</p><p className="font-medium">{viewApp.parentName}</p></div>
                 <div><p className="text-muted-foreground">Phone</p><p className="font-medium">{viewApp.parentPhone}</p></div>
+                <div><p className="text-muted-foreground">Email</p><p className="font-medium">{viewApp.parentEmail || "—"}</p></div>
                 <div><p className="text-muted-foreground">Previous School</p><p className="font-medium">{viewApp.previousSchool}</p></div>
                 <div><p className="text-muted-foreground">Date Applied</p><p className="font-medium">{new Date(viewApp.dateApplied).toLocaleDateString("en-GB")}</p></div>
                 <div><p className="text-muted-foreground">Status</p><Badge variant={viewApp.status === "Approved" ? "default" : "secondary"} className="text-xs">{viewApp.status}</Badge></div>
               </div>
+              {viewApp.notes && <div><p className="text-muted-foreground">Notes</p><p className="font-medium">{viewApp.notes}</p></div>}
             </div>
           )}
           <DialogFooter className="gap-2 sm:gap-0 flex-col sm:flex-row">

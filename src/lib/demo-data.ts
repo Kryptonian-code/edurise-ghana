@@ -18,7 +18,7 @@ export const stats = {
   totalTeachers: 62,
   totalClasses: 28,
   admissionRate: 94,
-  passRate: 98,
+  passRate: 99,
   newAdmissions: 43,
   totalRevenue: 2456000,
   outstandingFees: 345000,
@@ -113,7 +113,7 @@ export const events = [
 export const newsArticles = [
   { id: "1", title: "Prestige Academy Wins Regional Mathematics Competition", date: "2024-11-01", excerpt: "Our JHS 3 students emerged as champions at the 2024 Greater Accra Regional Mathematics Quiz, beating 24 other schools.", image: "" },
   { id: "2", title: "New ICT Laboratory Commissioned", date: "2024-10-15", excerpt: "The school has commissioned a state-of-the-art ICT laboratory equipped with 40 modern computers and high-speed internet.", image: "" },
-  { id: "3", title: "Outstanding BECE Results for 2024", date: "2024-09-20", excerpt: "We are proud to announce that 98% of our JHS 3 candidates passed the 2024 BECE with distinction, with 15 students scoring aggregate 6.", image: "" },
+  { id: "3", title: "Outstanding BECE Results for 2024", date: "2024-09-20", excerpt: "We are proud to announce that 99% of our JHS 3 candidates passed the 2024 BECE with distinction, with 15 students scoring aggregate 6.", image: "" },
 ];
 
 export const programmes = [
